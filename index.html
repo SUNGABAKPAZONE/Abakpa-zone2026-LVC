@@ -8,7 +8,7 @@
 <!-- Firebase SDKs (Modular version) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, query, where, deleteDoc, doc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, query, where, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
 
   // Your web app's Firebase configuration
@@ -35,10 +35,8 @@
   window.getDocs = getDocs;
   window.query = query;
   window.where = where;
-  window.deleteDoc = deleteDoc;
   window.doc = doc;
   window.getDoc = getDoc;
-  window.writeBatch = writeBatch;
   
   console.log("Firebase initialized successfully with Firestore!");
 </script>
@@ -371,6 +369,7 @@
         box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         text-align: center;
         transition: transform 0.3s ease;
+        cursor: pointer;
     }
 
     .card:hover {
@@ -1122,18 +1121,13 @@
 
 <script type="module">
 // ==================== FIREBASE WITH FIRESTORE ====================
-import { getFirestore, collection, addDoc, getDocs, query, where, doc, deleteDoc, getDoc, writeBatch, updateDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
-const db = window.db;
-const firestoreDb = db;
+const firestoreDb = window.db;
 
 // ==================== LOCAL DATABASE ====================
 let database = JSON.parse(localStorage.getItem('su_camp_2026_db')) || { children: [], youth: [], pilgrims: [] };
 let systemConfig = JSON.parse(localStorage.getItem('su_camp_2026_config')) || { targetDate: "2026-08-01T08:00" };
-
-// Connection status
-let isOnline = true;
-let syncInProgress = false;
 
 // Store duplicate info for modal
 let lastDuplicateInfo = null;
@@ -1143,7 +1137,6 @@ let lastFormType = null;
 const femaleHostels = ["JOY", "GRACE", "FAVOUR", "SERAH", "DEBORAH", "MARY"];
 const maleHostels = ["PETER", "PAUL", "SOLOMON", "DAVID", "ABRAHAM", "ISAAC"];
 
-// Teams and Bible Study Centers share the SAME names (15 teams)
 const campTeamsAndBibleStudies = [
     "TEAM GRACE", "TEAM PEACE", "TEAM FAVOUR", "TEAM PURITY", 
     "TEAM DELIGHT", "TEAM LOVE", "TEAM CONFIDENCE", "TEAM FAITH", 
@@ -1195,18 +1188,15 @@ async function saveToCloud(record, category) {
     try {
         updateSyncStatus('syncing', 'Saving to Firebase...');
         
-        // Add a timestamp for Firestore
         const recordWithTimestamp = {
             ...record,
             cloudTimestamp: new Date().toISOString(),
             category: category
         };
         
-        // Save to Firestore collection
         const docRef = await addDoc(collection(firestoreDb, category), recordWithTimestamp);
         console.log(`✅ Saved to Firestore with ID: ${docRef.id}`);
         
-        // Store the Firestore ID in the local record for future updates
         record.firestoreId = docRef.id;
         
         updateSyncStatus('online', 'Saved to Firebase ✅');
@@ -1220,8 +1210,8 @@ async function saveToCloud(record, category) {
 
 // Load all data from Firestore
 async function syncFromCloud() {
-    const syncBtn = event ? event.target : null;
-    if (syncBtn) {
+    const syncBtn = document.querySelector('#adminPanel .btn-admin-tab + div button') || event?.target;
+    if (syncBtn && syncBtn.tagName === 'BUTTON') {
         syncBtn.disabled = true;
         syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
     }
@@ -1229,21 +1219,18 @@ async function syncFromCloud() {
     updateSyncStatus('syncing', 'Loading from Firebase...');
     
     try {
-        // Load children
         const childrenSnapshot = await getDocs(collection(firestoreDb, 'children'));
         const children = [];
         childrenSnapshot.forEach(doc => {
             children.push({ ...doc.data(), firestoreId: doc.id });
         });
         
-        // Load youth
         const youthSnapshot = await getDocs(collection(firestoreDb, 'youth'));
         const youth = [];
         youthSnapshot.forEach(doc => {
             youth.push({ ...doc.data(), firestoreId: doc.id });
         });
         
-        // Load pilgrims
         const pilgrimsSnapshot = await getDocs(collection(firestoreDb, 'pilgrims'));
         const pilgrims = [];
         pilgrimsSnapshot.forEach(doc => {
@@ -1253,12 +1240,11 @@ async function syncFromCloud() {
         database = { children, youth, pilgrims };
         youthCountGlobal = database.youth.length;
         
-        // Save to localStorage
         localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
         
         updateSyncStatus('online', `Loaded ${children.length + youth.length + pilgrims.length} records`);
         
-        if (syncBtn) {
+        if (syncBtn && syncBtn.tagName === 'BUTTON') {
             syncBtn.disabled = false;
             syncBtn.innerHTML = '☁️ Sync from Cloud';
         }
@@ -1272,7 +1258,7 @@ async function syncFromCloud() {
         updateSyncStatus('offline', 'Load Failed');
         alert('❌ Failed to load from Firebase. Check console for details.');
         
-        if (syncBtn) {
+        if (syncBtn && syncBtn.tagName === 'BUTTON') {
             syncBtn.disabled = false;
             syncBtn.innerHTML = '☁️ Sync from Cloud';
         }
@@ -1281,7 +1267,6 @@ async function syncFromCloud() {
 
 // ==================== DUPLICATE CHECK FUNCTION ====================
 async function checkDuplicate(name, age, phone) {
-    // Check local database first (faster)
     for (let cat of ['children', 'youth', 'pilgrims']) {
         const found = database[cat].find(r => 
             r.name.toLowerCase() === name.toLowerCase() && 
@@ -1297,7 +1282,6 @@ async function checkDuplicate(name, age, phone) {
         }
     }
     
-    // Also check Firestore for duplicates (in case local is outdated)
     try {
         const categories = ['children', 'youth', 'pilgrims'];
         for (const cat of categories) {
@@ -1409,12 +1393,12 @@ function saveCampDate() {
 }
 
 // ==================== MODAL FUNCTIONS ====================
-function openModal(id) {
+window.openModal = function(id) {
     document.getElementById(id).style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
 
-function closeModal(id) {
+window.closeModal = function(id) {
     document.getElementById(id).style.display = 'none';
     document.body.style.overflow = 'auto';
 }
@@ -1440,7 +1424,6 @@ async function handleRegistration(event, type) {
     
     let record = {};
     let codePrefix = "";
-    let category = type;
     let name = '';
     let age = '';
     let phone = '';
@@ -1459,7 +1442,6 @@ async function handleRegistration(event, type) {
         phone = document.getElementById('p_phone').value.trim();
     }
     
-    // Duplicate check
     const duplicateResult = await checkDuplicate(name, age, phone);
     
     if (duplicateResult.isDuplicate) {
@@ -1540,12 +1522,10 @@ async function handleRegistration(event, type) {
     record.timestamp = Date.now();
     record.registeredAt = new Date().toISOString();
     
-    // Save to Firestore first
     try {
         const docRef = await saveToCloud(record, type);
         record.firestoreId = docRef.id;
         
-        // Save locally
         database[type].push(record);
         localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
         
@@ -1570,7 +1550,6 @@ async function handleVerification(event) {
     let foundRecord = null;
     let foundType = '';
     
-    // Search local database first
     for (let category of ['youth', 'children', 'pilgrims']) {
         let match = database[category].find(r => 
             r.name.toLowerCase().includes(searchVal) || 
@@ -1583,7 +1562,6 @@ async function handleVerification(event) {
         }
     }
     
-    // If not found locally, search Firestore
     if (!foundRecord) {
         try {
             const categories = ['children', 'youth', 'pilgrims'];
@@ -1649,13 +1627,13 @@ function displaySuccess(record, type) {
     document.getElementById('successScreen').style.display = 'block';
 }
 
-function closeSuccess() {
+window.closeSuccess = function() {
     document.getElementById('successScreen').style.display = 'none';
     document.getElementById('mainFrontPage').style.display = 'block';
 }
 
 // ==================== ADMIN LOGIN ====================
-function adminLogin() {
+window.adminLogin = function() {
     const pass = prompt("Enter Secure Admin Password:");
     if (pass === "SU2026Admin") {
         document.getElementById('mainFrontPage').style.display = 'none';
@@ -1667,13 +1645,13 @@ function adminLogin() {
     }
 }
 
-function logoutAdmin() {
+window.logoutAdmin = function() {
     document.getElementById('adminPanel').style.display = 'none';
     document.getElementById('mainFrontPage').style.display = 'block';
 }
 
 // ==================== ADMIN TABS ====================
-function switchAdminTab(tabId, event) {
+window.switchAdminTab = function(tabId, event) {
     document.querySelectorAll('.data-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.btn-admin-tab').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -1713,7 +1691,7 @@ function populateTable(tableId, data, keys) {
     let tbody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
     tbody.innerHTML = "";
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="' + keys.length + '" style="text-align:center; padding:20px;">No records yet</td></tr>';
+        tbody.innerHTML = '<table><td colspan="' + keys.length + '" style="text-align:center; padding:20px;">No records yet</td></tr>';
         return;
     }
     data.forEach(row => {
@@ -1791,7 +1769,7 @@ function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
     table.id = tableId;
     
     let headerLabels = columns.map(col => col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, ' $1'));
-    table.innerHTML = `<thead><tr>${headerLabels.map(label => `<th>${label}</th>`).join('')}</td></thead>`;
+    table.innerHTML = `<thead><tr>${headerLabels.map(label => `<th>${label}</th>`).join('')}</table></thead>`;
     
     let tbody = document.createElement('tbody');
     if(dataList.length === 0) {
@@ -1808,7 +1786,7 @@ function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
 }
 
 // ==================== GLOBAL SEARCH ====================
-function runGlobalMasterSearch() {
+window.runGlobalMasterSearch = function() {
     const query = document.getElementById('adminGlobalMasterSearch').value.toLowerCase().trim();
     const badge = document.getElementById('globalSearchCounterBadge');
     const allRows = document.querySelectorAll('#adminPanel table tbody tr');
@@ -1831,7 +1809,7 @@ function runGlobalMasterSearch() {
 }
 
 // ==================== EXPORT FUNCTIONS ====================
-function exportTableToExcel(tableId, filename) {
+window.exportTableToExcel = function(tableId, filename) {
     let table = document.getElementById(tableId);
     if (!table) return;
     let csv = [];
@@ -1848,7 +1826,7 @@ function exportTableToExcel(tableId, filename) {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-function exportTableToPDF(tableId, titleName) {
+window.exportTableToPDF = function(tableId, titleName) {
     let table = document.getElementById(tableId);
     if (!table) return;
     let printWindow = window.open('', '', 'height=700,width=1000');
@@ -1865,14 +1843,14 @@ function exportTableToPDF(tableId, titleName) {
             th { background: #f2f2f2; }
         </style></head><body>
             <h2>${titleName}</h2>
-            <table>${rowsHtml}</table>
+            <table>${rowsHtml}</tr>
             <script>window.onload = function() { window.print(); window.close(); };<\/script>
         </body></html>
     `);
     printWindow.document.close();
 }
 
-function downloadAllAllocationsPDF() {
+window.downloadAllAllocationsPDF = function() {
     let printWindow = window.open('', '', 'height=900,width=1100');
     let hostelsHtml = document.getElementById('hostelsTablesContainer').innerHTML;
     let teamsHtml = document.getElementById('teamsTablesContainer').innerHTML;
@@ -1897,7 +1875,7 @@ function downloadAllAllocationsPDF() {
     printWindow.document.close();
 }
 
-function exportCSVData() {
+window.exportCSVData = function() {
     let csv = "Category,Unique Code,Name,Age,Gender,Phone,Hostel,Team,Bible Study\n";
     database.children.forEach(r => csv += `Child,${r.code},"${r.name}",${r.age},${r.gender},${r.phone},N/A,N/A,N/A\n`);
     database.youth.forEach(r => csv += `Youth,${r.code},"${r.name}",${r.age},${r.gender},${r.phone},${r.hostel},${r.team},${r.bibleStudyCenter}\n`);
@@ -1909,7 +1887,7 @@ function exportCSVData() {
 }
 
 // ==================== BULK ID CARDS ====================
-function generateBulkIDCardsPDF() {
+window.generateBulkIDCardsPDF = function() {
     let masterList = [...database.youth, ...database.children, ...database.pilgrims];
     if (masterList.length === 0) {
         alert("The dataset registry is empty. Please register candidates first.");
@@ -2011,24 +1989,6 @@ function generateBulkIDCardsPDF() {
     printWindow.document.close();
 }
 
-// ==================== MAKE FUNCTIONS GLOBAL ====================
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.adminLogin = adminLogin;
-window.logoutAdmin = logoutAdmin;
-window.switchAdminTab = switchAdminTab;
-window.exportTableToExcel = exportTableToExcel;
-window.exportTableToPDF = exportTableToPDF;
-window.downloadAllAllocationsPDF = downloadAllAllocationsPDF;
-window.exportCSVData = exportCSVData;
-window.generateBulkIDCardsPDF = generateBulkIDCardsPDF;
-window.syncFromCloud = syncFromCloud;
-window.saveCampDate = saveCampDate;
-window.runGlobalMasterSearch = runGlobalMasterSearch;
-window.closeDuplicateModal = closeDuplicateModal;
-window.closeDuplicateAndVerify = closeDuplicateAndVerify;
-window.closeSuccess = closeSuccess;
-
 // ==================== EVENT LISTENERS ====================
 document.getElementById('childForm').addEventListener('submit', function(e) {
     handleRegistration(e, 'children');
@@ -2047,6 +2007,9 @@ document.getElementById('verifyForm').addEventListener('submit', function(e) {
 });
 
 document.getElementById('adminCampDatePicker').value = systemConfig.targetDate;
+
+// Make syncFromCloud available globally
+window.syncFromCloud = syncFromCloud;
 
 // Initial load from Firestore
 setTimeout(() => {
