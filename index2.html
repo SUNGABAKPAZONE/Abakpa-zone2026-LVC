@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 Scripture Union LVC & Admin Portal</title>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+
+<style>
+    :root {
+        --light-green: #d4edda;
+        --dark-green: #155724;
+        --white: #ffffff;
+        --light-red: #f8d7da;
+        --dark-red: #721c24;
+        --accent-green: #28a745;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    body {
+        overflow-x: hidden;
+        background: #f5f5f5;
+        color: #333;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        transition: background-image 1.5s ease-in-out;
+        min-height: 100vh;
+    }
+
+    header {
+        background: linear-gradient(135deg, var(--dark-green), var(--accent-green));
+        color: #ffffff;
+        text-align: center;
+        padding: 30px 20px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .header-left {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex-shrink: 0;
+    }
+
+    .site-logo {
+        width: 90px;
+        height: 90px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 4px solid white;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    header h1 {
+        font-size: 2rem;
+    }
+
+    header p {
+        margin-top: 10px;
+    }
+
+    /* Sync Status Indicator */
+    .sync-status {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: white;
+        padding: 10px 15px;
+        border-radius: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        z-index: 999;
+        font-weight: 600;
+    }
+
+    .sync-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #f39c12;
+        animation: syncPulse 1.5s infinite;
+    }
+
+    .sync-dot.online {
+        background: #27ae60;
+        animation: none;
+    }
+
+    .sync-dot.offline {
+        background: #e74c3c;
+        animation: none;
+    }
+
+    @keyframes syncPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+
+    /* Countdown in Header */
+    .header-countdown {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        padding: 15px 20px;
+        text-align: center;
+        min-width: 200px;
+    }
+
+    .header-countdown .countdown-title {
+        font-size: 0.85rem;
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #fff;
+    }
+
+    .header-countdown .countdown-timer {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .header-countdown .time-box {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 5px 8px;
+        border-radius: 6px;
+        min-width: 55px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header-countdown .time-box span {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: var(--dark-green);
+    }
+
+    .header-countdown .time-box label {
+        font-size: 0.65rem;
+        color: #555;
+        text-transform: uppercase;
+    }
+
+    /* Theme Container */
+    .theme-container {
+        max-width: 1000px;
+        width: 90%;
+        margin: 25px auto 10px auto;
+        background: linear-gradient(135deg, #43fcec, #6fcee6);
+        color: rgb(77, 2, 2);
+        text-align: center;
+        padding: 20px 15px;
+        border-radius: 12px;
+        box-shadow: 0 6px 15px rgba(21, 87, 36, 0.25);
+        border: 2px solid #1e7e34;
+    }
+
+    .theme-label {
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 600;
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+
+    .theme-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        margin-bottom: 8px;
+    }
+
+    .theme-scripture {
+        font-size: 1.2rem;
+        font-style: italic;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.2);
+        display: inline-block;
+        padding: 4px 18px;
+        border-radius: 20px;
+    }
+
+    /* Animated Welcome */
+    .animated-welcome {
+        background: var(--light-red);
+        color: var(--dark-red);
+        padding: 15px;
+        border-radius: 10px;
+        margin: 20px auto;
+        max-width: 1000px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 1.1rem;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.03); }
+        100% { transform: scale(1); }
+    }
+
+    /* Vision Container */
+    .vision-container {
+        max-width: 900px;
+        margin: 30px auto 30px auto;
+        padding: 25px;
+        background: var(--white);
+        border: 2px solid var(--light-green);
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    .vision-container h2 {
+        color: var(--dark-green);
+        margin-bottom: 10px;
+        border-bottom: 2px solid var(--light-green);
+        padding-bottom: 5px;
+    }
+
+    .vision-container p {
+        font-size: 1.05rem;
+        line-height: 1.6;
+        color: #444;
+    }
+
+    /* Duplicate Warning Modal */
+    .duplicate-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7);
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        z-index: 2000;
+    }
+
+    .duplicate-content {
+        background: white;
+        width: 90%;
+        max-width: 500px;
+        padding: 30px;
+        border-radius: 12px;
+        text-align: center;
+        border-top: 8px solid #e74c3c;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { transform: translateY(-50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .duplicate-icon {
+        font-size: 4rem;
+        margin-bottom: 15px;
+    }
+
+    .duplicate-content h2 {
+        color: #e74c3c;
+        margin-bottom: 15px;
+    }
+
+    .duplicate-content .info-box {
+        background: #fdf2f2;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        text-align: left;
+    }
+
+    .duplicate-content .info-box p {
+        margin: 5px 0;
+        font-size: 0.95rem;
+    }
+
+    .duplicate-content .info-box .code-highlight {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #c0392b;
+        letter-spacing: 1px;
+    }
+
+    /* Cards and Buttons */
+    .container {
+        max-width: 1100px;
+        margin: auto;
+        padding: 20px;
+    }
+
+    .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    .card h3 {
+        color: var(--dark-green);
+        margin-bottom: 10px;
+    }
+
+    button {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 5px;
+        background: var(--accent-green);
+        color: white;
+        cursor: pointer;
+        margin-top: 15px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    button:hover {
+        opacity: 0.9;
+        transform: translateY(-2px);
+    }
+
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-verify {
+        background-color: #3498db;
+    }
+
+    .btn-confirm {
+        background: var(--light-red);
+        color: var(--dark-red);
+        width: 90%;
+        max-width: 400px;
+        display: block;
+        margin: 20px auto;
+        border-radius: 8px;
+    }
+
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .btn-warning {
+        background: #f39c12;
+        color: white;
+    }
+
+    /* Modals */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 25px;
+        border-radius: 10px;
+        position: relative;
+        border-top: 8px solid var(--accent-green);
+    }
+
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        cursor: pointer;
+        font-size: 1.5rem;
+        color: #666;
+    }
+
+    .close:hover {
+        color: #000;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+    }
+
+    /* Required field indicator */
+    .required-note {
+        font-size: 0.8rem;
+        color: #e74c3c;
+        margin-top: 10px;
+        font-weight: 500;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Success Screen */
+    .success-screen {
+        display: none;
+        max-width: 750px;
+        margin: 30px auto;
+        background: var(--light-green);
+        border: 2px solid var(--dark-green);
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+    }
+
+    /* Admin Panel */
+    .admin {
+        display: none;
+        margin-top: 40px;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        border: 3px solid #34495e;
+    }
+
+    .admin-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: #f4f6f7;
+        padding: 15px;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: bold;
+        border-bottom: 4px solid #34495e;
+    }
+
+    .stat-card.green-card {
+        background: var(--light-green);
+        border-bottom-color: var(--dark-green);
+    }
+
+    .stat-card span {
+        display: block;
+        font-size: 1.8rem;
+        color: #2c3e50;
+        margin-top: 5px;
+    }
+
+    .stat-card p {
+        font-size: 0.85rem;
+        color: #555;
+        margin-top: 4px;
+        font-weight: 500;
+    }
+
+    .btn-admin-tab {
+        background: #34495e;
+        color: #fff;
+        border-radius: 4px;
+        padding: 8px 16px;
+        margin: 5px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        border: none;
+    }
+
+    .btn-admin-tab.active {
+        background: var(--accent-green);
+    }
+
+    .btn-download {
+        background-color: #2980b9;
+        color: white;
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        display: inline-block;
+        margin-left: 5px;
+        cursor: pointer;
+        border: none;
+    }
+
+    .btn-pdf {
+        background-color: #e74c3c;
+        color: white;
+    }
+
+    .nested-dashboard-tabs {
+        border-bottom: 2px solid #ddd;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+    }
+
+    .data-section {
+        display: none;
+    }
+
+    .data-section.active {
+        display: block;
+    }
+
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 5px;
+        margin-bottom: 30px;
+        border: 1px solid #ddd;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.9rem;
+    }
+
+    table th, table td {
+        padding: 10px;
+        border: 1px solid #ddd;
+    }
+
+    table th {
+        background: var(--light-green);
+        color: var(--dark-green);
+        font-weight: 600;
+    }
+
+    table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    .group-report-box {
+        background: #fff;
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+
+    .group-report-title {
+        color: var(--dark-green);
+        background: var(--light-green);
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+
+    .section-header-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .config-box {
+        background: #fdfefe;
+        border: 1px solid #ccc;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+
+    .search-filter-box {
+        background: #eef2f3;
+        border: 2px solid var(--accent-green);
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+    }
+
+    footer {
+        text-align: center;
+        padding: 20px;
+        margin-top: 40px;
+        background: var(--dark-green);
+        color: white;
+    }
+
+    @media print {
+        body * { visibility: hidden; }
+        #printableReceipt, #printableReceipt * { visibility: visible; }
+        #printableReceipt { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+
+    @media(max-width: 768px) {
+        header {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .header-left, .header-right {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .header-countdown {
+            margin-top: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .header-countdown .countdown-timer {
+            flex-wrap: nowrap;
+            gap: 5px;
+        }
+
+        .header-countdown .time-box {
+            min-width: 45px;
+            padding: 4px 6px;
+        }
+
+        .header-countdown .time-box span {
+            font-size: 1.1rem;
+        }
+
+        .theme-title {
+            font-size: 1.4rem;
+        }
+
+        .modal-content {
+            width: 95%;
+            padding: 18px;
+        }
+
+        button {
+            width: 100%;
+        }
+
+        .cards {
+            grid-template-columns: 1fr;
+        }
+
+        header h1 {
+            font-size: 1.3rem;
+        }
+
+        .admin-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .section-header-flex {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        table {
+            font-size: 0.75rem;
+        }
+
+        th, td {
+            padding: 8px;
+        }
+        
+        .vision-container {
+            margin: 20px 15px;
+            padding: 20px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <img src="LOGO 2.jpg" alt="Scripture Union Logo" class="site-logo">
+        <h1>SCRIPTURE UNION NIGERIA NGWO AREA, ABAKPA ZONE </h1>
+        <h2>2026 Children, Students and Youth Long Vacation Camp</h2>
+    </div>
+    
+    <!-- Countdown Timer -->
+    <div class="header-right">
+        <div class="header-countdown">
+            <div class="countdown-title" id="countdownLabel">Camp Begins In</div>
+            <div class="countdown-timer">
+                <div class="time-box"><span id="timer-days">00</span><label>Days</label></div>
+                <div class="time-box"><span id="timer-hours">00</span><label>Hours</label></div>
+                <div class="time-box"><span id="timer-minutes">00</span><label>Mins</label></div>
+                <div class="time-box"><span id="timer-seconds">00</span><label>Secs</label></div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Sync Status Indicator -->
+<div class="sync-status" id="syncStatus">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">Connecting...</span>
+</div>
+
+<!-- Main Front Page -->
+<div id="mainFrontPage">
+    <!-- Theme Container -->
+    <div class="theme-container">
+        <div class="theme-label">THEME</div>
+        <div class="theme-title">FAITHFUL AND FRUITFUL</div>
+        <div class="theme-scripture">JOHN 15:5</div>
+        <h2>Date: JULY 29th - 1st August 2026</h2>
+    </div>
+
+    <!-- Animated Welcome -->
+    <div class="animated-welcome">
+        🎉 Welcome to Scripture Union Abakpa Zone 2026 Children, Student and Youth Long Vacation Camp 🎉
+    </div>
+    
+
+    <!-- Registration Cards -->
+    <div class="container">
+        <div class="cards">
+            <div class="card">
+                <h3>🧒 Children Registration Portal</h3>
+                <p>Register children for the 2026 LVC.</p>
+                <button onclick="openModal('childModal')">Register Child</button>
+            </div>
+
+            <div class="card">
+                <h3>👨‍🎓 Youth Registration Portal</h3>
+                <p>Register youths for the 2026 LVC.</p>
+                <button onclick="openModal('youthModal')">Register Youth</button>
+            </div>
+
+            <div class="card">
+                <h3>🙏 Pilgrim Registration Portal</h3>
+                <p>Register pilgrims and officers.</p>
+                <button onclick="openModal('pilgrimModal')">Register Pilgrim</button>
+            </div>
+
+            <div class="card">
+                <h3>🔍 Verify Registration</h3>
+                <p>Find & re-download your camp pass.</p>
+                <button class="btn-verify" onclick="openModal('verifyModal')">Search Registration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vision & Aim Section -->
+    <div class="vision-container">
+        <h2>📖 Our Aim</h2>
+        <p>To make God's Good News known to children, young people, and families and to encourage people of all ages to meet God daily through the Bible and prayer.</p>
+        <br>
+        <h2>✨ Our Vision</h2>
+        <p>To see children and young people discovering Jesus Christ as Lord, growing in maturity, and serving eagerly in their local churches and communities.</p>
+    </div>
+
+    <button class="btn-confirm" onclick="adminLogin()">🔐 Admin Access Dashboard</button>
+</div>
+
+<!-- Duplicate Warning Modal -->
+<div class="duplicate-modal" id="duplicateModal">
+    <div class="duplicate-content">
+        <div class="duplicate-icon">⚠️</div>
+        <h2>DUPLICATE REGISTRATION DETECTED!</h2>
+        <p style="color: #666; margin-bottom: 10px;">This person has already been registered in the system.</p>
+        <div class="info-box" id="duplicateInfo"></div>
+        <p style="font-size: 0.9rem; color: #666; margin: 15px 0;">
+            <strong>Each person can only register once.</strong><br>
+            If you need to reprint the pass, use the <strong>"Verify Registration"</strong> option.
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn-warning" onclick="closeDuplicateModal()">Go Back to Form</button>
+            <button class="btn-verify" onclick="closeDuplicateAndVerify()">🔍 Verify Registration Instead</button>
+        </div>
+    </div>
+</div>
+
+<!-- Success Screen -->
+<div id="successScreen" class="success-screen">
+    <div id="printableReceipt">
+        <div style="border: 2px solid var(--dark-green); padding: 20px; background: white; text-align: left; color: black;">
+            <div style="text-align:center; margin-bottom:15px;">
+                <span style="font-size:1.5rem; font-weight:bold; color:var(--dark-green);">SCRIPTURE UNION NIGERIA</span><br>
+                <span>Abakpa Zone Ngwo Area 2026 LVC Receipt</span>
+            </div>
+            <hr style="border:1px solid var(--dark-green); margin-bottom:15px;">
+            <div id="successMessageText"></div>
+        </div>
+    </div>
+    <br>
+    <button onclick="window.print()">🖨️ Download / Print Pass</button>
+    <button class="btn-confirm" onclick="closeSuccess()">Return to Homepage</button>
+</div>
+
+<!-- Admin Panel -->
+<div class="admin" id="adminPanel">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+        <h2>📊 Secure Admin Management System</h2>
+        <div>
+            <button style="background:#2980b9; margin-right:10px;" onclick="syncFromCloud()">☁️ Sync from Cloud</button>
+            <button style="background:#e74c3c; color:white; padding:8px 15px; font-size:0.9rem;" onclick="logoutAdmin()">Logout</button>
+        </div>
+    </div>
+
+    <!-- Configure Camp Date -->
+    <div class="config-box">
+        <h4 style="margin-bottom:8px; color:#2c3e50;">Configure Camp Target Launch Date</h4>
+        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:center;">
+            <input type="datetime-local" id="adminCampDatePicker" style="width:auto; padding:6px 12px;">
+            <button style="padding:8px 20px; font-size:0.9rem; border-radius:4px;" onclick="saveCampDate()">Update Date & Timer</button>
+        </div>
+    </div>
+
+    <!-- Global Search Engine -->
+    <div class="search-filter-box">
+        <h3 style="color:var(--dark-green); margin-bottom:5px;">🔍 Global Master Candidate Engine</h3>
+        <p style="font-size:0.9rem; color:#444; margin-bottom:12px; font-weight:500;">
+            Type a student's name below to search across ALL SYSTEM REGISTERS AT ONCE.
+        </p>
+        <input type="text" id="adminGlobalMasterSearch" placeholder="Type name or allocation code to find anyone instantly..." 
+               oninput="runGlobalMasterSearch()" 
+               style="width:100%; padding:14px 18px; font-size:1.05rem; font-weight:600; border:2px solid var(--dark-green); border-radius:6px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+        <div id="globalSearchCounterBadge" style="margin-top:8px; font-size:0.85rem; color:var(--dark-red); font-weight:bold;"></div>
+    </div>
+
+    <!-- Statistics Grid -->
+    <div class="admin-grid" id="adminGridStats"></div>
+
+    <!-- Admin Tabs -->
+    <div class="nested-dashboard-tabs">
+        <button class="btn-admin-tab active" onclick="switchAdminTab('t-summary', event)">📊 Summary / Breakdowns</button>
+        <button class="btn-admin-tab" onclick="switchAdminTab('t-youth', event)">👨‍🎓 Youth Table</button>
+        <button class="btn-admin-tab" onclick="switchAdminTab('t-child', event)">🧒 Children Table</button>
+        <button class="btn-admin-tab" onclick="switchAdminTab('t-pilgrim', event)">🙏 Pilgrim Table</button>
+    </div>
+
+    <!-- TAB: Summary -->
+    <div id="t-summary" class="data-section active">
+        <div style="margin-bottom: 20px; text-align: right;">
+            <button class="btn-pdf" style="font-size:0.9rem; padding:10px 20px;" onclick="downloadAllAllocationsPDF()">📄 Download All Breakdowns As PDF</button>
+        </div>
+
+        <div id="hostelTablesSection">
+            <h2 style="color: #2c3e50; margin: 20px 0 10px 0; border-bottom: 2px dashed #ccc; padding-bottom:5px;">🏠 Camp Hostels Ledger Allocation</h2>
+            <div id="hostelsTablesContainer"></div>
+        </div>
+
+        <div id="teamTablesSection">
+            <h2 style="color: #2c3e50; margin: 35px 0 10px 0; border-bottom: 2px dashed #ccc; padding-bottom:5px;">🏆 Camp Assigned Teams & Bible Study Centers</h2>
+            <div id="teamsTablesContainer"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top:30px;">
+            <div>
+                <div class="section-header-flex"><h3>Distribution by Fellowship</h3></div>
+                <div class="table-responsive"><table id="fellowshipReportTable"><thead><tr><th>Fellowship Base</th><th>Total Count</th></tr></thead><tbody></tbody></table></div>
+            </div>
+            <div>
+                <div class="section-header-flex"><h3>Distribution by Schools</h3></div>
+                <div class="table-responsive"><table id="schoolReportTable"><thead><tr><th>School Name</th><th>Total Count</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Youth -->
+    <div id="t-youth" class="data-section">
+        <div class="section-header-flex">
+            <h3>Registered Youth Ledger</h3>
+            <div>
+                <button class="btn-download" onclick="exportTableToExcel('tableYouthData', 'Youth_Attendance')">📥 Excel</button>
+                <button class="btn-download btn-pdf" onclick="exportTableToPDF('tableYouthData', 'Youth Camp Attendance')">📄 PDF</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="tableYouthData">
+                <thead>
+                    <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Category</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th><th>Hostel</th><th>Team</th><th>Bible Study</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB: Children -->
+    <div id="t-child" class="data-section">
+        <div class="section-header-flex">
+            <h3>Registered Children Ledger</h3>
+            <div>
+                <button class="btn-download" onclick="exportTableToExcel('tableChildrenData', 'Children_Attendance')">📥 Excel</button>
+                <button class="btn-download btn-pdf" onclick="exportTableToPDF('tableChildrenData', 'Children Camp Attendance')">📄 PDF</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="tableChildrenData">
+                <thead>
+                    <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB: Pilgrims -->
+    <div id="t-pilgrim" class="data-section">
+        <div class="section-header-flex">
+            <h3>Registered Pilgrims Ledger</h3>
+            <div>
+                <button class="btn-download" onclick="exportTableToExcel('tablePilgrimsData', 'Pilgrims_Attendance')">📥 Excel</button>
+                <button class="btn-download btn-pdf" onclick="exportTableToPDF('tablePilgrimsData', 'Pilgrims Camp Ledger')">📄 PDF</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="tablePilgrimsData">
+                <thead>
+                    <tr><th>Code</th><th>Name</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>Phone</th><th>Office Held</th><th>SU Member?</th><th>1st Time?</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap;">
+        <button style="background-color: #27ae60;" onclick="exportCSVData()">📥 Download Master CSV (All Categories)</button>
+        <button class="btn-pdf" style="background-color: #8e44ad; padding: 12px 25px; border-radius: 25px;" onclick="generateBulkIDCardsPDF()">🪪 Generate Bulk Printable ID Cards</button>
+    </div>
+</div>
+
+<!-- CHILD MODAL -->
+<div class="modal" id="childModal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('childModal')">&times;</span>
+        <h2>🧒 Children Registration</h2>
+        <form id="childForm">
+            <div class="form-group"><label>Full Name *</label><input type="text" id="c_name" required placeholder="Enter child's full name"></div>
+            <div class="form-group"><label>Age * (0-12 years)</label><input type="number" id="c_age" required min="0" max="12" placeholder="Enter age"></div>
+            <div class="form-group"><label>Gender *</label><select id="c_gender" required><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+            <div class="form-group"><label>Fellowship Group*</label><input type="text" id="c_fellowship" required placeholder="Enter fellowship name"></div>
+            <div class="form-group"><label>Church *</label><input type="text" id="c_church" required placeholder="Enter church name"></div>
+            <div class="form-group"><label>School</label><input type="text" id="c_school" placeholder="Enter school name"></div>
+            <div class="form-group"><label>Class</label><input type="text" id="c_class" placeholder="Enter current class"></div>
+            <div class="form-group"><label>Phone Number *</label><input type="tel" id="c_phone" required placeholder="Enter phone number"></div>
+            <div class="form-group"><label>Parent Contact *</label><input type="tel" id="c_parent" required placeholder="Enter parent's phone"></div>
+            <div class="form-group"><label>SU Member?</label><select id="c_su_member"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <div class="form-group"><label>First Time in SU Camp?</label><select id="c_first_time"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <p class="required-note">* Required fields. Duplicate check uses Name + Age + Phone Number.</p>
+            <button type="submit" id="childSubmitBtn">Submit Registration</button>
+        </form>
+    </div>
+</div>
+
+<!-- YOUTH MODAL -->
+<div class="modal" id="youthModal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('youthModal')">&times;</span>
+        <h2>👨‍🎓 Youth Registration</h2>
+        <form id="youthForm">
+            <div class="form-group"><label>Full Name *</label><input type="text" id="y_name" required placeholder="Enter full name"></div>
+            <div class="form-group"><label>Age * (13-35 years)</label><input type="number" id="y_age" required min="13" max="35" placeholder="Enter age"></div>
+            <div class="form-group"><label>Gender *</label><select id="y_gender" required><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+            <div class="form-group"><label>Fellowship Group *</label><input type="text" id="y_fellowship" required placeholder="Enter fellowship name"></div>
+            <div class="form-group"><label>Church *</label><input type="text" id="y_church" required placeholder="Enter church name"></div>
+            <div class="form-group"><label>School</label><input type="text" id="y_school" placeholder="Enter school name"></div>
+            <div class="form-group"><label>Class</label><input type="text" id="y_class" placeholder="Enter class or level"></div>
+            <div class="form-group"><label>Youth Category *</label><select id="y_category" required><option value="">Select</option><option value="SUCF">SUCF</option><option value="School Leaver">School Leaver</option><option value="Graduate">Graduate</option><option value="Student">Student</option></select></div>
+            <div class="form-group"><label>Phone Number *</label><input type="tel" id="y_phone" required placeholder="Enter phone number"></div>
+            <div class="form-group"><label>Parent Contact *</label><input type="tel" id="y_parent" required placeholder="Enter parent's phone"></div>
+            <div class="form-group"><label>SU Member?</label><select id="y_su_member"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <div class="form-group"><label>First Time in SU Camp?</label><select id="y_first_time"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <p class="required-note">* Required fields. Duplicate check uses Name + Age + Phone Number.</p>
+            <button type="submit" id="youthSubmitBtn">Submit Registration</button>
+        </form>
+    </div>
+</div>
+
+<!-- PILGRIM MODAL -->
+<div class="modal" id="pilgrimModal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('pilgrimModal')">&times;</span>
+        <h2>🙏 Pilgrim Registration</h2>
+        <form id="pilgrimForm">
+            <div class="form-group"><label>Full Name *</label><input type="text" id="p_name" required placeholder="Enter full name"></div>
+            <div class="form-group"><label>Age *</label><input type="number" id="p_age" required min="18" placeholder="Enter age"></div>
+            <div class="form-group"><label>Gender *</label><select id="p_gender" required><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+            <div class="form-group"><label>Fellowship Group*</label><input type="text" id="p_fellowship" required placeholder="Enter fellowship name"></div>
+            <div class="form-group"><label>Church *</label><input type="text" id="p_church" required placeholder="Enter church name"></div>
+            <div class="form-group"><label>Phone Number *</label><input type="tel" id="p_phone" required placeholder="Enter phone number"></div>
+            <div class="form-group"><label>Office Held *</label><input type="text" id="p_office" required placeholder="Enter office held"></div>
+            <div class="form-group"><label>SU Member?</label><select id="p_su_member"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <div class="form-group"><label>First Time in SU Camp?</label><select id="p_first_time"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <p class="required-note">* Required fields. Duplicate check uses Name + Age + Phone Number.</p>
+            <button type="submit" id="pilgrimSubmitBtn">Submit Registration</button>
+        </form>
+    </div>
+</div>
+
+<!-- VERIFY MODAL -->
+<div class="modal" id="verifyModal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('verifyModal')">&times;</span>
+        <h2>🔍 Find Your Registration Pass</h2>
+        <form id="verifyForm">
+            <div class="form-group">
+                <label>Search Keyword</label>
+                <input type="text" id="v_search" placeholder="Enter Full Name OR Phone Number" required>
+            </div>
+            <button type="submit" class="btn-verify" style="width: 100%; border-radius: 6px;">Search Registration</button>
+        </form>
+    </div>
+</div>
+
+<footer>
+    Scripture Union Nigeria © 2026 | Abakpa Zone Ngwo Area
+</footer>
+
+<script>
+// ==================== FIREBASE CONFIGURATION ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyAthyt1WZYnUpfPXdvt5CyozM_YUL2250s",
+    authDomain: "abakpa-zone-2026lvc.firebaseapp.com",
+    databaseURL: "https://abakpa-zone-2026lvc-default-rtdb.firebaseio.com",
+    projectId: "abakpa-zone-2026lvc",
+    storageBucket: "abakpa-zone-2026lvc.firebasestorage.app",
+    messagingSenderId: "182575393675",
+    appId: "1:182575393675:web:d5edf8998ad61c41f75d8e",
+    measurementId: "G-TMYQVM1RTS"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const analytics = firebase.analytics();
+
+// Database reference
+const cloudDBRef = db.ref('registrations');
+
+// ==================== LOCAL DATABASE ====================
+let database = JSON.parse(localStorage.getItem('su_camp_2026_db')) || { children: [], youth: [], pilgrims: [] };
+let systemConfig = JSON.parse(localStorage.getItem('su_camp_2026_config')) || { targetDate: "2026-08-01T08:00" };
+
+// Connection status
+let isOnline = true;
+let syncInProgress = false;
+
+// Store duplicate info for modal
+let lastDuplicateInfo = null;
+let lastFormType = null;
+
+// ==================== ALLOCATION ARRAYS ====================
+const femaleHostels = ["JOY", "GRACE", "FAVOUR", "SERAH", "DEBORAH", "MARY"];
+const maleHostels = ["PETER", "PAUL", "SOLOMON", "DAVID", "ABRAHAM", "ISAAC"];
+
+// Teams and Bible Study Centers share the SAME names (15 teams)
+const campTeamsAndBibleStudies = [
+    "TEAM GRACE", "TEAM PEACE", "TEAM FAVOUR", "TEAM PURITY", 
+    "TEAM DELIGHT", "TEAM LOVE", "TEAM CONFIDENCE", "TEAM FAITH", 
+    "TEAM KINDNESS", "TEAM MERCY", "TEAM RIGHTEOUSNESS", "TEAM PREVAIL",
+    "TEAM GOODNESS", "TEAM HOPE", "TEAM GREATNESS"
+];
+
+let youthCountGlobal = database.youth.length;
+
+// ==================== BACKGROUND IMAGES ====================
+const backgroundImages = [
+    'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=1600&q=80',
+    'https://images.unsplash.com/photo-1609234656388-0ff363383899?auto=format&fit=crop&w=1600&q=80',
+    'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&fit=crop&w=1600&q=80',
+    'https://images.unsplash.com/photo-1529070538774-1843cb3265df?auto=format&fit=crop&w=1600&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1600&q=80',
+    'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1600&q=80'
+];
+
+let bgIndex = 0;
+
+function changeBackground() {
+    document.body.style.backgroundImage = `url('${backgroundImages[bgIndex]}')`;
+    bgIndex = (bgIndex + 1) % backgroundImages.length;
+}
+
+changeBackground();
+setInterval(changeBackground, 20000);
+
+// ==================== FIREBASE SYNC ====================
+function updateSyncStatus(status, text) {
+    const dot = document.getElementById('syncDot');
+    const statusText = document.getElementById('syncText');
+    
+    dot.className = 'sync-dot';
+    if (status === 'online') {
+        dot.classList.add('online');
+        statusText.textContent = text || 'Synced with Cloud';
+    } else if (status === 'offline') {
+        dot.classList.add('offline');
+        statusText.textContent = text || 'Offline - Local Only';
+    } else {
+        statusText.textContent = text || 'Syncing...';
+    }
+}
+
+db.ref('.info/connected').on('value', (snap) => {
+    if (snap.val() === true) {
+        isOnline = true;
+        updateSyncStatus('online', 'Connected to Cloud');
+        syncLocalToCloud();
+    } else {
+        isOnline = false;
+        updateSyncStatus('offline', 'Offline - Saving Locally');
+    }
+});
+
+function saveToCloud(record, category) {
+    if (!isOnline) return Promise.resolve();
+    
+    const newRecordRef = cloudDBRef.child(category).push();
+    return newRecordRef.set(record)
+        .then(() => {
+            updateSyncStatus('online', 'Saved to Cloud ✅');
+        })
+        .catch((error) => {
+            console.error('Cloud save error:', error);
+            updateSyncStatus('offline', 'Cloud Save Failed');
+        });
+}
+
+function syncLocalToCloud() {
+    if (!isOnline || syncInProgress) return;
+    
+    syncInProgress = true;
+    updateSyncStatus('syncing', 'Syncing to Cloud...');
+    
+    const promises = [];
+    
+    return cloudDBRef.remove()
+        .then(() => {
+            database.children.forEach((record, index) => {
+                promises.push(cloudDBRef.child('children').child(`child_${index}`).set(record));
+            });
+            database.youth.forEach((record, index) => {
+                promises.push(cloudDBRef.child('youth').child(`youth_${index}`).set(record));
+            });
+            database.pilgrims.forEach((record, index) => {
+                promises.push(cloudDBRef.child('pilgrims').child(`pilgrim_${index}`).set(record));
+            });
+            return Promise.all(promises);
+        })
+        .then(() => {
+            updateSyncStatus('online', 'Cloud Sync Complete ✅');
+            syncInProgress = false;
+        })
+        .catch((error) => {
+            console.error('Sync error:', error);
+            updateSyncStatus('offline', 'Sync Failed');
+            syncInProgress = false;
+        });
+}
+
+function syncFromCloud() {
+    if (!isOnline) {
+        alert('⚠️ You are offline. Cannot sync from cloud.');
+        return;
+    }
+    
+    const syncBtn = event.target;
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
+    
+    updateSyncStatus('syncing', 'Downloading from Cloud...');
+    
+    cloudDBRef.once('value')
+        .then((snapshot) => {
+            const cloudData = snapshot.val();
+            
+            if (cloudData) {
+                database.children = cloudData.children ? Object.values(cloudData.children) : [];
+                database.youth = cloudData.youth ? Object.values(cloudData.youth) : [];
+                database.pilgrims = cloudData.pilgrims ? Object.values(cloudData.pilgrims) : [];
+                
+                youthCountGlobal = database.youth.length;
+                localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                
+                updateSyncStatus('online', 'Downloaded from Cloud ✅');
+                renderDashboardData();
+                
+                alert(`✅ Successfully synced from cloud!\n\nChildren: ${database.children.length}\nYouth: ${database.youth.length}\nPilgrims: ${database.pilgrims.length}`);
+            } else {
+                updateSyncStatus('online', 'Cloud is empty');
+                alert('ℹ️ No data found in cloud. Cloud database is empty.');
+            }
+            
+            syncBtn.disabled = false;
+            syncBtn.textContent = '☁️ Sync from Cloud';
+        })
+        .catch((error) => {
+            console.error('Download error:', error);
+            updateSyncStatus('offline', 'Download Failed');
+            alert('❌ Failed to sync from cloud. Check your connection.');
+            syncBtn.disabled = false;
+            syncBtn.textContent = '☁️ Sync from Cloud';
+        });
+}
+
+// ==================== DUPLICATE CHECK FUNCTION ====================
+function checkDuplicate(name, age, phone) {
+    // Check ALL categories (children, youth, pilgrims) for duplicates
+    // Uses Name + Age + Phone Number combination
+    for (let cat of ['children', 'youth', 'pilgrims']) {
+        const found = database[cat].find(r => 
+            r.name.toLowerCase() === name.toLowerCase() && 
+            r.age === age &&
+            r.phone === phone
+        );
+        if (found) {
+            return {
+                isDuplicate: true,
+                category: cat,
+                existingRecord: found
+            };
+        }
+    }
+    return { isDuplicate: false };
+}
+
+// ==================== DUPLICATE MODAL FUNCTIONS ====================
+function showDuplicateModal(duplicateInfo, formType) {
+    lastDuplicateInfo = duplicateInfo;
+    lastFormType = formType;
+    
+    const categoryLabel = duplicateInfo.category === 'children' ? 'Children' : 
+                          duplicateInfo.category === 'youth' ? 'Youth' : 'Pilgrim';
+    
+    document.getElementById('duplicateInfo').innerHTML = `
+        <p><strong>📛 Name:</strong> ${duplicateInfo.existingRecord.name}</p>
+        <p><strong>🎂 Age:</strong> ${duplicateInfo.existingRecord.age} years</p>
+        <p><strong>📞 Phone:</strong> ${duplicateInfo.existingRecord.phone}</p>
+        <p><strong>📋 Category:</strong> ${categoryLabel}</p>
+        <p><strong>🏷️ Existing Code:</strong> <span class="code-highlight">${duplicateInfo.existingRecord.code}</span></p>
+        <p><strong>📅 Registered On:</strong> ${duplicateInfo.existingRecord.registeredAt ? new Date(duplicateInfo.existingRecord.registeredAt).toLocaleDateString() : 'N/A'}</p>
+    `;
+    
+    document.getElementById('duplicateModal').style.display = 'flex';
+}
+
+function closeDuplicateModal() {
+    document.getElementById('duplicateModal').style.display = 'none';
+    lastDuplicateInfo = null;
+    // Re-enable the submit button on the form
+    if (lastFormType) {
+        const submitBtn = document.getElementById(lastFormType + 'SubmitBtn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Registration';
+        }
+    }
+}
+
+function closeDuplicateAndVerify() {
+    document.getElementById('duplicateModal').style.display = 'none';
+    
+    // Close current form modal
+    if (lastFormType === 'child') closeModal('childModal');
+    else if (lastFormType === 'youth') closeModal('youthModal');
+    else if (lastFormType === 'pilgrim') closeModal('pilgrimModal');
+    
+    // Pre-fill verify modal with the name
+    if (lastDuplicateInfo && lastDuplicateInfo.existingRecord) {
+        document.getElementById('v_search').value = lastDuplicateInfo.existingRecord.name;
+    }
+    
+    // Open verify modal
+    openModal('verifyModal');
+    
+    lastDuplicateInfo = null;
+}
+
+// ==================== COUNTDOWN TIMER ====================
+function runCountdownTimer() {
+    const target = new Date(systemConfig.targetDate).getTime();
+    const now = new Date().getTime();
+    const difference = target - now;
+    
+    if (difference <= 0) {
+        document.getElementById('countdownLabel').innerText = "Camp Has Commenced! 🎉";
+        document.getElementById('timer-days').innerText = "00";
+        document.getElementById('timer-hours').innerText = "00";
+        document.getElementById('timer-minutes').innerText = "00";
+        document.getElementById('timer-seconds').innerText = "00";
+        return;
+    }
+    
+    const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+    
+    document.getElementById('timer-days').innerText = String(days).padStart(2, '0');
+    document.getElementById('timer-hours').innerText = String(hours).padStart(2, '0');
+    document.getElementById('timer-minutes').innerText = String(minutes).padStart(2, '0');
+    document.getElementById('timer-seconds').innerText = String(seconds).padStart(2, '0');
+}
+
+setInterval(runCountdownTimer, 1000);
+runCountdownTimer();
+
+function saveCampDate() {
+    const pickerValue = document.getElementById('adminCampDatePicker').value;
+    if (!pickerValue) return;
+    systemConfig.targetDate = pickerValue;
+    localStorage.setItem('su_camp_2026_config', JSON.stringify(systemConfig));
+    alert("✅ Camp launch countdown date updated successfully!");
+    runCountdownTimer();
+}
+
+// ==================== MODAL FUNCTIONS ====================
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    if (event.target.classList.contains('duplicate-modal')) {
+        closeDuplicateModal();
+    }
+}
+
+// ==================== REGISTRATION FUNCTION WITH 3-FIELD DUPLICATE CHECK ====================
+async function handleRegistration(event, type) {
+    event.preventDefault();
+    
+    // Disable submit button
+    const submitBtnId = type === 'children' ? 'childSubmitBtn' : type === 'youth' ? 'youthSubmitBtn' : 'pilgrimSubmitBtn';
+    const submitBtn = document.getElementById(submitBtnId);
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Checking for duplicates...';
+    
+    let record = {};
+    let codePrefix = "";
+    let category = type;
+    let name = '';
+    let age = '';
+    let phone = '';
+    
+    // Collect data based on type
+    if (type === 'children') {
+        name = document.getElementById('c_name').value.trim();
+        age = document.getElementById('c_age').value;
+        phone = document.getElementById('c_phone').value.trim();
+    } else if (type === 'youth') {
+        name = document.getElementById('y_name').value.trim();
+        age = document.getElementById('y_age').value;
+        phone = document.getElementById('y_phone').value.trim();
+    } else if (type === 'pilgrims') {
+        name = document.getElementById('p_name').value.trim();
+        age = document.getElementById('p_age').value;
+        phone = document.getElementById('p_phone').value.trim();
+    }
+    
+    // ==================== 3-FIELD DUPLICATE CHECK: NAME + AGE + PHONE ====================
+    const duplicateResult = checkDuplicate(name, age, phone);
+    
+    if (duplicateResult.isDuplicate) {
+        // Show duplicate warning modal
+        showDuplicateModal(duplicateResult, type === 'children' ? 'child' : type === 'youth' ? 'youth' : 'pilgrim');
+        return;
+    }
+    
+    // ==================== PROCEED WITH REGISTRATION ====================
+    submitBtn.innerHTML = '<span class="spinner"></span> Registering...';
+    
+    let nextIndex = database[type].length + 1;
+    
+    if (type === 'children') {
+        record = {
+            name: name,
+            age: age,
+            gender: document.getElementById('c_gender').value,
+            fellowship: document.getElementById('c_fellowship').value,
+            church: document.getElementById('c_church').value,
+            school: document.getElementById('c_school').value || 'N/A',
+            className: document.getElementById('c_class').value || 'N/A',
+            phone: phone,
+            parent: document.getElementById('c_parent').value,
+            suMember: document.getElementById('c_su_member').value,
+            firstTime: document.getElementById('c_first_time').value,
+            hostel: 'N/A',
+            team: 'N/A',
+            bibleStudyCenter: 'Children Unit'
+        };
+        codePrefix = "SU2026LVCC";
+    } else if (type === 'youth') {
+        const assignedTeam = campTeamsAndBibleStudies[youthCountGlobal % campTeamsAndBibleStudies.length];
+        
+        record = {
+            name: name,
+            age: age,
+            gender: document.getElementById('y_gender').value,
+            fellowship: document.getElementById('y_fellowship').value,
+            church: document.getElementById('y_church').value,
+            school: document.getElementById('y_school').value || 'N/A',
+            className: document.getElementById('y_class').value || 'N/A',
+            category: document.getElementById('y_category').value,
+            phone: phone,
+            parent: document.getElementById('y_parent').value,
+            suMember: document.getElementById('y_su_member').value,
+            firstTime: document.getElementById('y_first_time').value,
+            team: assignedTeam,
+            bibleStudyCenter: assignedTeam,
+            hostel: ''
+        };
+        
+        record.hostel = (record.gender === 'Female') ? 
+            femaleHostels[youthCountGlobal % femaleHostels.length] : 
+            maleHostels[youthCountGlobal % maleHostels.length];
+            
+        codePrefix = "SU2026LVCY";
+        youthCountGlobal++;
+    } else if (type === 'pilgrims') {
+        record = {
+            name: name,
+            age: age,
+            gender: document.getElementById('p_gender').value,
+            fellowship: document.getElementById('p_fellowship').value,
+            church: document.getElementById('p_church').value,
+            phone: phone,
+            office: document.getElementById('p_office').value,
+            suMember: document.getElementById('p_su_member').value,
+            firstTime: document.getElementById('p_first_time').value,
+            hostel: 'Pilgrim Lodge',
+            team: 'Officers Team',
+            bibleStudyCenter: 'Officers Bible Study'
+        };
+        codePrefix = "SU2026LVCP";
+    }
+    
+    record.code = codePrefix + String(nextIndex).padStart(4, '0');
+    record.timestamp = Date.now();
+    record.registeredAt = new Date().toISOString();
+    
+    // Save locally
+    database[type].push(record);
+    localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+    
+    // Save to Firebase cloud
+    if (isOnline) {
+        try {
+            await saveToCloud(record, type);
+        } catch (error) {
+            console.error('Cloud save error:', error);
+        }
+    } else {
+        updateSyncStatus('offline', 'Saved Locally - Will sync when online');
+    }
+    
+    // Reset button
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Registration';
+    
+    closeModal(type + 'Modal');
+    displaySuccess(record, type);
+}
+
+// ==================== VERIFICATION ====================
+function handleVerification(event) {
+    event.preventDefault();
+    const searchVal = document.getElementById('v_search').value.toLowerCase().trim();
+    let foundRecord = null;
+    let foundType = '';
+    
+    for (let category of ['youth', 'children', 'pilgrims']) {
+        let match = database[category].find(r => 
+            r.name.toLowerCase().includes(searchVal) || 
+            r.phone.includes(searchVal)
+        );
+        if (match) {
+            foundRecord = match;
+            foundType = category;
+            break;
+        }
+    }
+    
+    if (foundRecord) {
+        closeModal('verifyModal');
+        displaySuccess(foundRecord, foundType);
+    } else {
+        alert('❌ No registration found. Please check your name or phone number and try again.');
+    }
+}
+
+// ==================== DISPLAY SUCCESS ====================
+function displaySuccess(record, type) {
+    document.getElementById('mainFrontPage').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'none';
+    
+    const messageBox = document.getElementById('successMessageText');
+    let html = `
+        <h2>✅ REGISTRATION SUCCESSFUL!</h2>
+        <p><b>ID CODE: <span style='color:var(--dark-red); font-size:1.2rem;'>${record.code}</span></b></p>
+        <p><b>Full Name:</b> ${record.name}</p>
+        <p><b>Age:</b> ${record.age || 'N/A'} years</p>
+        <p><b>Gender:</b> ${record.gender}</p>
+        <p><b>Church:</b> ${record.church || 'N/A'}</p>
+    `;
+    
+    if (record.hostel && record.hostel !== 'N/A') {
+        html += `
+            <p><b>Allocated Hostel:</b> ${record.hostel} ${record.hostel.includes('Hostel') || record.hostel.includes('Lodge') ? '' : 'HOSTEL'}</p>
+            <p><b>Assigned Team:</b> ${record.team}</p>
+            <p><b>Bible Study Center:</b> ${record.bibleStudyCenter}</p>
+        `;
+    }
+    
+    html += `
+        <br>
+        <p style="background: #fff3cd; padding: 10px; border-radius: 5px;">
+            <strong>📌 Please come with ₦700 to purchase camp materials such as the Bible study outline and Magazine.</strong>
+        </p>
+        <p style="font-size: 0.85rem; color: #666; margin-top: 10px;">
+            ⚠️ This registration is unique. Duplicate registration with same Name, Age & Phone is not allowed.
+        </p>
+    `;
+    
+    messageBox.innerHTML = html;
+    document.getElementById('successScreen').style.display = 'block';
+}
+
+function closeSuccess() {
+    document.getElementById('successScreen').style.display = 'none';
+    document.getElementById('mainFrontPage').style.display = 'block';
+}
+
+// ==================== ADMIN LOGIN ====================
+function adminLogin() {
+    const pass = prompt("Enter Secure Admin Password:");
+    if (pass === "SU2026Admin") {
+        document.getElementById('mainFrontPage').style.display = 'none';
+        document.getElementById('successScreen').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        renderDashboardData();
+    } else if (pass !== null) {
+        alert('❌ Invalid password! Access denied.');
+    }
+}
+
+function logoutAdmin() {
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('mainFrontPage').style.display = 'block';
+}
+
+// ==================== ADMIN TABS ====================
+function switchAdminTab(tabId, event) {
+    document.querySelectorAll('.data-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.btn-admin-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    if (event) event.currentTarget.classList.add('active');
+}
+
+// ==================== RENDER DASHBOARD ====================
+function renderDashboardData() {
+    let y = database.youth || [];
+    let c = database.children || [];
+    let p = database.pilgrims || [];
+    
+    let yMale = y.filter(item => item.gender === 'Male').length;
+    let yFemale = y.filter(item => item.gender === 'Female').length;
+    let cMale = c.filter(item => item.gender === 'Male').length;
+    let cFemale = c.filter(item => item.gender === 'Female').length;
+    let pMale = p.filter(item => item.gender === 'Male').length;
+    let pFemale = p.filter(item => item.gender === 'Female').length;
+
+    document.getElementById('adminGridStats').innerHTML = `
+        <div class="stat-card green-card">Grand Total<span>${y.length + c.length + p.length}</span></div>
+        <div class="stat-card">Total Youths<span>${y.length}</span><p>👦 Male: ${yMale} | 👧 Female: ${yFemale}</p></div>
+        <div class="stat-card">Total Children<span>${c.length}</span><p>👦 Male: ${cMale} | 👧 Female: ${cFemale}</p></div>
+        <div class="stat-card">Total Pilgrims<span>${p.length}</span><p>👨 Male: ${pMale} | 👩 Female: ${pFemale}</p></div>
+    `;
+
+    populateTable('tableYouthData', y, ['code','name','age','gender','fellowship','church','school','className','category','phone','parent','suMember','firstTime','hostel','team','bibleStudyCenter']);
+    populateTable('tableChildrenData', c, ['code','name','age','gender','fellowship','church','school','className','phone','parent','suMember','firstTime']);
+    populateTable('tablePilgrimsData', p, ['code','name','age','gender','fellowship','church','phone','office','suMember','firstTime']);
+    
+    buildSeparatedGroupTables();
+    buildCountReport('fellowshipReportTable', [...y, ...c, ...p], 'fellowship');
+    buildCountReport('schoolReportTable', [...y, ...c], 'school');
+}
+
+function populateTable(tableId, data, keys) {
+    let tbody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
+    tbody.innerHTML = "";
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="' + keys.length + '" style="text-align:center; padding:20px;">No records yet</td></tr>';
+        return;
+    }
+    data.forEach(row => {
+        let tr = document.createElement('tr');
+        keys.forEach(k => { 
+            let td = document.createElement('td');
+            td.textContent = row[k] || 'N/A';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+}
+
+function buildCountReport(tableId, dataset, keyField) {
+    let counts = {};
+    dataset.forEach(item => { 
+        let val = (item[keyField] || 'N/A').toUpperCase().trim(); 
+        counts[val] = (counts[val] || 0) + 1; 
+    });
+    let tbody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
+    tbody.innerHTML = "";
+    let sortedKeys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    for (let name of sortedKeys) { 
+        tbody.innerHTML += `<tr><td>${name}</td><td><b>${counts[name]}</b> entries</td></tr>`; 
+    }
+}
+
+function buildSeparatedGroupTables() {
+    let y = database.youth || [];
+    
+    let hostelsContainer = document.getElementById('hostelsTablesContainer');
+    hostelsContainer.innerHTML = "";
+    let allHostels = [...new Set(maleHostels.concat(femaleHostels))].sort();
+    
+    allHostels.forEach((hostelName, index) => {
+        let records = y.filter(item => item.hostel && item.hostel.toUpperCase() === hostelName.toUpperCase());
+        hostelsContainer.appendChild(createSeparatedTableNode(`hostel_tbl_${index}`, `${hostelName} HOSTEL`, records, ['code','name','age','gender','phone','school','team','bibleStudyCenter']));
+    });
+
+    let teamsContainer = document.getElementById('teamsTablesContainer');
+    teamsContainer.innerHTML = "";
+    campTeamsAndBibleStudies.forEach((teamName, index) => {
+        let records = y.filter(item => item.team && item.team.toUpperCase() === teamName.toUpperCase());
+        teamsContainer.appendChild(createSeparatedTableNode(`team_tbl_${index}`, `${teamName} (Team & Bible Study)`, records, ['code','name','age','gender','phone','school','hostel']));
+    });
+}
+
+function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
+    let box = document.createElement('div');
+    box.className = "group-report-box";
+    
+    let headerFlex = document.createElement('div');
+    headerFlex.className = "section-header-flex";
+    headerFlex.style.cssText = "margin-top: 0; padding: 6px 12px; background: #2c3e50; color: white; border-radius: 4px;";
+    
+    let h3 = document.createElement('h3');
+    h3.className = "group-report-title";
+    h3.style.cssText = "background:none; color:white; font-size: 1rem;";
+    h3.innerText = `${titleLabel} (Total: ${dataList.length})`;
+    
+    let btnWrapper = document.createElement('div');
+    btnWrapper.innerHTML = `
+        <button class="btn-download" style="background:#16a085;" onclick="exportTableToExcel('${tableId}', '${titleLabel.replace(/\s+/g, '_')}')">📥 Excel</button>
+        <button class="btn-download btn-pdf" onclick="exportTableToPDF('${tableId}', '${titleLabel}')">📄 PDF</button>
+    `;
+    
+    headerFlex.appendChild(h3);
+    headerFlex.appendChild(btnWrapper);
+    box.appendChild(headerFlex);
+
+    let responsiveDiv = document.createElement('div');
+    responsiveDiv.className = "table-responsive";
+    
+    let table = document.createElement('table');
+    table.id = tableId;
+    
+    let headerLabels = columns.map(col => col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, ' $1'));
+    table.innerHTML = `<thead><tr>${headerLabels.map(label => `<th>${label}</th>`).join('')}</tr></thead>`;
+    
+    let tbody = document.createElement('tbody');
+    if(dataList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:#999;">No members registered yet.</td></tr>`;
+    } else {
+        dataList.forEach(member => {
+            let row = '<tr>';
+            columns.forEach(col => {
+                row += `<td>${col === 'code' ? '<b>' + (member[col] || 'N/A') + '</b>' : (member[col] || 'N/A')}</td>`;
+            });
+            row += '</tr>';
+            tbody.innerHTML += row;
+        });
+    }
+    table.appendChild(tbody);
+    responsiveDiv.appendChild(table);
+    box.appendChild(responsiveDiv);
+    return box;
+}
+
+// ==================== GLOBAL SEARCH ====================
+function runGlobalMasterSearch() {
+    const query = document.getElementById('adminGlobalMasterSearch').value.toLowerCase().trim();
+    const badge = document.getElementById('globalSearchCounterBadge');
+    const allRows = document.querySelectorAll('#adminPanel table tbody tr');
+    let matches = 0;
+    
+    allRows.forEach(row => {
+        if (row.cells.length <= 1 && row.innerText.includes("No")) return;
+        const cellText = row.innerText.toLowerCase();
+        if (query === "") {
+            row.style.display = "";
+        } else if (cellText.includes(query)) {
+            row.style.display = "";
+            matches++;
+        } else {
+            row.style.display = "none";
+        }
+    });
+    
+    badge.innerText = query === "" ? "" : `🎯 Found ${matches} matching records for "${query}"`;
+}
+
+// ==================== EXPORT FUNCTIONS ====================
+function exportTableToExcel(tableId, filename) {
+    let table = document.getElementById(tableId);
+    if (!table) return;
+    let csv = [];
+    let rows = table.querySelectorAll("tr");
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i].style.display === "none") continue;
+        let row = [], cols = rows[i].querySelectorAll("td, th");
+        for (let j = 0; j < cols.length; j++) row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+        csv.push(row.join(","));
+    }
+    let link = document.createElement("a");
+    link.setAttribute("href", "data:text/csv;charset=utf-8,\uFEFF" + encodeURI(csv.join("\n")));
+    link.setAttribute("download", `${filename}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+function exportTableToPDF(tableId, titleName) {
+    let table = document.getElementById(tableId);
+    if (!table) return;
+    let printWindow = window.open('', '', 'height=700,width=1000');
+    let rowsHtml = "";
+    let rows = table.querySelectorAll("tr");
+    rows.forEach(row => {
+        if (row.style.display !== "none") rowsHtml += `<tr>${row.innerHTML}</tr>`;
+    });
+    printWindow.document.write(`
+        <html><head><title>${titleName}</title><style>
+            body { font-family: sans-serif; margin: 30px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #aaa; padding: 8px; text-align: left; }
+            th { background: #f2f2f2; }
+        </style></head><body>
+            <h2>${titleName}</h2>
+            <table>${rowsHtml}</table>
+            <script>window.onload = function() { window.print(); window.close(); };<\/script>
+        </body></html>
+    `);
+    printWindow.document.close();
+}
+
+function downloadAllAllocationsPDF() {
+    let printWindow = window.open('', '', 'height=900,width=1100');
+    let hostelsHtml = document.getElementById('hostelsTablesContainer').innerHTML;
+    let teamsHtml = document.getElementById('teamsTablesContainer').innerHTML;
+    
+    printWindow.document.write(`
+        <html><head><title>SU LVC 2026 Master Allocation Breakdowns</title><style>
+            body { font-family: sans-serif; margin: 25px; background:#fff; }
+            .group-report-box { border: 1px solid #bbb; padding: 15px; margin-bottom: 25px; page-break-inside: avoid; }
+            .section-header-flex { background: #2c3e50 !important; color:#fff !important; padding: 6px; font-weight:bold; }
+            .btn-download { display:none !important; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #999; padding: 6px; text-align: left; font-size:0.85rem; }
+            th { background: #e6e6e6; }
+            h2 { margin-top: 30px; border-bottom: 2px solid #333; padding-bottom: 5px; }
+        </style></head><body>
+            <h1 style="text-align:center; color:#155724;">Scripture Union Nigeria - 2026 LVC Breakdown</h1>
+            <h2>🏠 Allocated Camp Hostels</h2> ${hostelsHtml}
+            <h2>🏆 Camp Assigned Teams & Bible Study Centers</h2> ${teamsHtml}
+            <script>window.onload = function() { window.print(); window.close(); };<\/script>
+        </body></html>
+    `);
+    printWindow.document.close();
+}
+
+function exportCSVData() {
+    let csv = "Category,Unique Code,Name,Age,Gender,Phone,Hostel,Team,Bible Study\n";
+    database.children.forEach(r => csv += `Child,${r.code},"${r.name}",${r.age},${r.gender},${r.phone},N/A,N/A,N/A\n`);
+    database.youth.forEach(r => csv += `Youth,${r.code},"${r.name}",${r.age},${r.gender},${r.phone},${r.hostel},${r.team},${r.bibleStudyCenter}\n`);
+    database.pilgrims.forEach(r => csv += `Pilgrim,${r.code},"${r.name}",${r.age},${r.gender},${r.phone},N/A,N/A,N/A\n`);
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    link.setAttribute("download", "SU_Camp_2026_Master_Report.csv");
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+// ==================== BULK ID CARDS ====================
+function generateBulkIDCardsPDF() {
+    let masterList = [...database.youth, ...database.children, ...database.pilgrims];
+    if (masterList.length === 0) {
+        alert("The dataset registry is empty. Please register candidates first.");
+        return;
+    }
+    let idCardsHtml = "";
+    let cardsPerPage = 12;
+    
+    for (let i = 0; i < masterList.length; i += cardsPerPage) {
+        let chunk = masterList.slice(i, i + cardsPerPage);
+        idCardsHtml += `<div class="a4-page-grid">`;
+        
+        chunk.forEach(member => {
+            let currentHostel = member.hostel || 'N/A';
+            if(currentHostel !== 'N/A' && currentHostel !== 'Pilgrim Lodge') currentHostel += ' HOSTEL';
+            
+            idCardsHtml += `
+                <div class="id-card-unit">
+                    <div class="id-card-header">
+                        <div class="id-mini-logo">SU</div>
+                        <div class="id-header-text">
+                            <h6>SCRIPTURE UNION NIGERIA</h6>
+                            <p>ABAKPA ZONE NGWO AREA</p>
+                        </div>
+                    </div>
+                    <div class="id-card-tag">2026 YOUTH & CHILDREN CAMP</div>
+                    <div class="id-card-body">
+                        <div class="id-field"><span class="lbl">NAME:</span> <span class="val">${member.name.toUpperCase()}</span></div>
+                        <div class="id-field"><span class="lbl">AGE:</span> <span class="val">${member.age || 'N/A'} years</span></div>
+                        <div class="id-field"><span class="lbl">HOSTEL:</span> <span class="val">${currentHostel}</span></div>
+                        <div class="id-field"><span class="lbl">TEAM:</span> <span class="val">${member.team || 'N/A'}</span></div>
+                        <div class="id-field"><span class="lbl">BIBLE STUDY:</span> <span class="val">${member.bibleStudyCenter || 'N/A'}</span></div>
+                        <div class="id-footer-code">${member.code}</div>
+                    </div>
+                </div>
+            `;
+        });
+        idCardsHtml += `</div>`;
+    }
+    
+    let printWindow = window.open('', '', 'height=850,width=1200');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Camp Printable ID Cards (12 Per Page)</title>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+                body { background: #f0f0f0; padding: 0; margin: 0; }
+                .a4-page-grid {
+                    width: 210mm; height: 297mm; padding: 8mm 6mm; margin: 15px auto;
+                    background: #ffffff; display: grid;
+                    grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr);
+                    gap: 4mm 3mm; page-break-after: always; overflow: hidden;
+                }
+                .id-card-unit {
+                    border: 2px solid #155724; border-radius: 8px; background: #ffffff;
+                    display: flex; flex-direction: column; overflow: hidden;
+                    box-shadow: 0 1px 4px rgba(0,0,0,0.15); position: relative; max-height: 66mm;
+                }
+                .id-card-header {
+                    background: #d4edda; display: flex; align-items: center; padding: 5px;
+                    border-bottom: 2px solid #28a745;
+                }
+                .id-mini-logo {
+                    width: 26px; height: 26px; background: #28a745; color: #fff;
+                    font-weight: bold; border-radius: 50%; display: flex;
+                    align-items: center; justify-content: center; font-size: 10px; margin-right: 6px;
+                }
+                .id-header-text h6 { font-size: 10px; color: #155724; font-weight: 800; }
+                .id-header-text p { font-size: 7px; color: #444; font-weight: bold; }
+                .id-card-tag {
+                    background: #155724; color: #fff; font-size: 8px; text-align: center;
+                    padding: 3px 0; letter-spacing: 0.5px; font-weight: bold;
+                }
+                .id-card-body { padding: 6px 8px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
+                .id-field { font-size: 9.5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333; }
+                .id-field .lbl { font-weight: 700; color: #555; display: inline-block; width: 75px; font-size: 8px; }
+                .id-field .val { color: #111; font-weight: bold; }
+                .id-footer-code {
+                    margin-top: 4px; border-top: 1px dotted #ccc; padding-top: 3px;
+                    text-align: center; font-size: 11px; font-weight: 800;
+                    color: #b23b3b; letter-spacing: 1px;
+                }
+                @media print {
+                    body { background: none; }
+                    .a4-page-grid { margin: 0 auto; border: none; box-shadow: none; }
+                    @page { size: A4 portrait; margin: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div id="wrapper">${idCardsHtml}</div>
+            <script>
+                window.onload = function() { window.print(); window.close(); };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+// ==================== EVENT LISTENERS ====================
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('childForm').addEventListener('submit', function(e) {
+        handleRegistration(e, 'children');
+    });
+    
+    document.getElementById('youthForm').addEventListener('submit', function(e) {
+        handleRegistration(e, 'youth');
+    });
+    
+    document.getElementById('pilgrimForm').addEventListener('submit', function(e) {
+        handleRegistration(e, 'pilgrims');
+    });
+    
+    document.getElementById('verifyForm').addEventListener('submit', function(e) {
+        handleVerification(e);
+    });
+    
+    document.getElementById('adminCampDatePicker').value = systemConfig.targetDate;
+    
+    setTimeout(() => {
+        if (isOnline) {
+            syncLocalToCloud();
+        }
+    }, 2000);
+});
+</script>
+
+</body>
+</html>
