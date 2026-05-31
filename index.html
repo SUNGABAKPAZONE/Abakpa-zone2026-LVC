@@ -952,7 +952,7 @@
                     <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Category</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th><th>Hostel</th><th>Team</th><th>Bible Study</th></tr>
                 </thead>
                 <tbody></tbody>
-            </table>
+            追赶
         </div>
     </div>
 
@@ -1120,6 +1120,9 @@ let syncInProgress = false;
 let lastDuplicateInfo = null;
 let lastFormType = null;
 
+// Flag to prevent duplicate cloud loading
+let cloudDataLoaded = false;
+
 // ==================== ALLOCATION ARRAYS ====================
 const femaleHostels = ["JOY", "GRACE", "FAVOUR", "SERAH", "DEBORAH", "MARY"];
 const maleHostels = ["PETER", "PAUL", "SOLOMON", "DAVID", "ABRAHAM", "ISAAC"];
@@ -1171,10 +1174,100 @@ function updateSyncStatus(status, text) {
     }
 }
 
+// ==================== FIX: LOAD CLOUD DATA ON PAGE START ====================
+function loadCloudDataOnStart() {
+    if (!isOnline || cloudDataLoaded) return;
+    
+    updateSyncStatus('syncing', 'Loading from Cloud...');
+    
+    cloudDBRef.once('value')
+        .then((snapshot) => {
+            const cloudData = snapshot.val();
+            
+            if (cloudData && (cloudData.children || cloudData.youth || cloudData.pilgrims)) {
+                const cloudHasData = (cloudData.children && Object.values(cloudData.children).length > 0) ||
+                                    (cloudData.youth && Object.values(cloudData.youth).length > 0) ||
+                                    (cloudData.pilgrims && Object.values(cloudData.pilgrims).length > 0);
+                
+                const localHasData = database.children.length > 0 || database.youth.length > 0 || database.pilgrims.length > 0;
+                
+                // If cloud has data and local is empty, load from cloud
+                if (cloudHasData && !localHasData) {
+                    database.children = cloudData.children ? Object.values(cloudData.children) : [];
+                    database.youth = cloudData.youth ? Object.values(cloudData.youth) : [];
+                    database.pilgrims = cloudData.pilgrims ? Object.values(cloudData.pilgrims) : [];
+                    youthCountGlobal = database.youth.length;
+                    localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                    updateSyncStatus('online', 'Loaded from Cloud ✅');
+                    console.log('✅ Cloud data loaded on page start. Total records:', 
+                               database.children.length + database.youth.length + database.pilgrims.length);
+                } 
+                // If both have data, merge (prefer cloud for conflicts)
+                else if (cloudHasData && localHasData) {
+                    // Merge cloud data with local (cloud takes precedence)
+                    const existingNames = new Set();
+                    database.children.forEach(c => existingNames.add(c.name.toLowerCase() + c.age + c.phone));
+                    database.youth.forEach(y => existingNames.add(y.name.toLowerCase() + y.age + y.phone));
+                    database.pilgrims.forEach(p => existingNames.add(p.name.toLowerCase() + p.age + p.phone));
+                    
+                    let mergedCount = 0;
+                    if (cloudData.children) {
+                        Object.values(cloudData.children).forEach(child => {
+                            const key = child.name.toLowerCase() + child.age + child.phone;
+                            if (!existingNames.has(key)) {
+                                database.children.push(child);
+                                existingNames.add(key);
+                                mergedCount++;
+                            }
+                        });
+                    }
+                    if (cloudData.youth) {
+                        Object.values(cloudData.youth).forEach(youth => {
+                            const key = youth.name.toLowerCase() + youth.age + youth.phone;
+                            if (!existingNames.has(key)) {
+                                database.youth.push(youth);
+                                existingNames.add(key);
+                                mergedCount++;
+                            }
+                        });
+                    }
+                    if (cloudData.pilgrims) {
+                        Object.values(cloudData.pilgrims).forEach(pilgrim => {
+                            const key = pilgrim.name.toLowerCase() + pilgrim.age + pilgrim.phone;
+                            if (!existingNames.has(key)) {
+                                database.pilgrims.push(pilgrim);
+                                existingNames.add(key);
+                                mergedCount++;
+                            }
+                        });
+                    }
+                    
+                    if (mergedCount > 0) {
+                        localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                        updateSyncStatus('online', `Merged ${mergedCount} records from cloud ✅`);
+                        console.log(`✅ Merged ${mergedCount} new records from cloud`);
+                    } else {
+                        updateSyncStatus('online', 'Already in sync ✅');
+                    }
+                }
+                
+                cloudDataLoaded = true;
+            } else {
+                updateSyncStatus('online', 'Ready - Cloud empty');
+            }
+        })
+        .catch((error) => {
+            console.error('Cloud load error:', error);
+            updateSyncStatus('offline', 'Using local data');
+        });
+}
+
 db.ref('.info/connected').on('value', (snap) => {
     if (snap.val() === true) {
         isOnline = true;
         updateSyncStatus('online', 'Connected to Cloud');
+        // Load cloud data when connection is established
+        loadCloudDataOnStart();
         syncLocalToCloud();
     } else {
         isOnline = false;
@@ -1204,6 +1297,7 @@ function syncLocalToCloud() {
     
     const promises = [];
     
+    // Clear cloud and re-upload all data (ensures consistency)
     return cloudDBRef.remove()
         .then(() => {
             database.children.forEach((record, index) => {
@@ -1251,6 +1345,7 @@ function syncFromCloud() {
                 
                 youthCountGlobal = database.youth.length;
                 localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                cloudDataLoaded = true;
                 
                 updateSyncStatus('online', 'Downloaded from Cloud ✅');
                 renderDashboardData();
@@ -1280,7 +1375,7 @@ function checkDuplicate(name, age, phone) {
     for (let cat of ['children', 'youth', 'pilgrims']) {
         const found = database[cat].find(r => 
             r.name.toLowerCase() === name.toLowerCase() && 
-            r.age === age &&
+            r.age == age &&
             r.phone === phone
         );
         if (found) {
@@ -1438,7 +1533,7 @@ async function handleRegistration(event, type) {
     }
     
     // ==================== 3-FIELD DUPLICATE CHECK: NAME + AGE + PHONE ====================
-    const duplicateResult = checkDuplicate(name, age, phone);
+    const duplicateResult = checkDuplicate(name, parseInt(age), phone);
     
     if (duplicateResult.isDuplicate) {
         // Show duplicate warning modal
@@ -1454,7 +1549,7 @@ async function handleRegistration(event, type) {
     if (type === 'children') {
         record = {
             name: name,
-            age: age,
+            age: parseInt(age),
             gender: document.getElementById('c_gender').value,
             fellowship: document.getElementById('c_fellowship').value,
             church: document.getElementById('c_church').value,
@@ -1474,7 +1569,7 @@ async function handleRegistration(event, type) {
         
         record = {
             name: name,
-            age: age,
+            age: parseInt(age),
             gender: document.getElementById('y_gender').value,
             fellowship: document.getElementById('y_fellowship').value,
             church: document.getElementById('y_church').value,
@@ -1499,7 +1594,7 @@ async function handleRegistration(event, type) {
     } else if (type === 'pilgrims') {
         record = {
             name: name,
-            age: age,
+            age: parseInt(age),
             gender: document.getElementById('p_gender').value,
             fellowship: document.getElementById('p_fellowship').value,
             church: document.getElementById('p_church').value,
@@ -1992,11 +2087,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('adminCampDatePicker').value = systemConfig.targetDate;
     
+    // Trigger cloud load immediately
     setTimeout(() => {
         if (isOnline) {
+            loadCloudDataOnStart();
             syncLocalToCloud();
         }
-    }, 2000);
+    }, 1000);
 });
 </script>
 
