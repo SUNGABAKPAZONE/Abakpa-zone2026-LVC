@@ -5,10 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>2026 Scripture Union LVC & Admin Portal</title>
 
-<!-- Firebase SDKs - UPDATED to v12.14.0 -->
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics-compat.js"></script>
 
 <style>
     :root {
@@ -505,7 +504,7 @@
 
     .admin-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 15px;
         margin-bottom: 30px;
     }
@@ -1088,7 +1087,7 @@
 </footer>
 
 <script>
-// ==================== FIREBASE CONFIGURATION - UPDATED ====================
+// ==================== FIREBASE CONFIGURATION ====================
 const firebaseConfig = {
     apiKey: "AIzaSyA0RKmUvpf946ZMivPTsN8QqmNkGfPqDn8",
     authDomain: "su-abakpa-zone-lvc.firebaseapp.com",
@@ -1096,16 +1095,16 @@ const firebaseConfig = {
     projectId: "su-abakpa-zone-lvc",
     storageBucket: "su-abakpa-zone-lvc.firebasestorage.app",
     messagingSenderId: "867176150585",
-    appId: "1:867176150585:web:df5b095e82552b2fdb7fe8",
-    measurementId: "G-PHTY5095D7"
+    appId: "1:867176150585:web:df5b095e82552b2fdb7fe8"
 };
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const analytics = firebase.analytics();
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+    console.log('✅ Firebase initialized');
+}
 
-// Database reference
+const db = firebase.database();
 const cloudDBRef = db.ref('registrations');
 
 // ==================== LOCAL DATABASE ====================
@@ -1115,19 +1114,13 @@ let systemConfig = JSON.parse(localStorage.getItem('su_camp_2026_config')) || { 
 // Connection status
 let isOnline = true;
 let syncInProgress = false;
-
-// Store duplicate info for modal
 let lastDuplicateInfo = null;
 let lastFormType = null;
-
-// Flag to prevent duplicate cloud loading
 let cloudDataLoaded = false;
 
 // ==================== ALLOCATION ARRAYS ====================
 const femaleHostels = ["JOY", "GRACE", "FAVOUR", "SERAH", "DEBORAH", "MARY"];
 const maleHostels = ["PETER", "PAUL", "SOLOMON", "DAVID", "ABRAHAM", "ISAAC"];
-
-// Teams and Bible Study Centers share the SAME names (15 teams)
 const campTeamsAndBibleStudies = [
     "TEAM GRACE", "TEAM PEACE", "TEAM FAVOUR", "TEAM PURITY", 
     "TEAM DELIGHT", "TEAM LOVE", "TEAM CONFIDENCE", "TEAM FAITH", 
@@ -1157,7 +1150,7 @@ function changeBackground() {
 changeBackground();
 setInterval(changeBackground, 20000);
 
-// ==================== FIREBASE SYNC ====================
+// ==================== FIREBASE SYNC FUNCTIONS ====================
 function updateSyncStatus(status, text) {
     const dot = document.getElementById('syncDot');
     const statusText = document.getElementById('syncText');
@@ -1174,155 +1167,156 @@ function updateSyncStatus(status, text) {
     }
 }
 
-// ==================== FIX: LOAD CLOUD DATA ON PAGE START ====================
-function loadCloudDataOnStart() {
+// Save to Cloud
+async function saveToCloud(record, category) {
+    if (!isOnline) {
+        console.log('Offline: Saving to local only');
+        return { success: false, reason: 'offline' };
+    }
+    
+    try {
+        const recordId = `${category}_${record.code}_${Date.now()}`;
+        const recordRef = cloudDBRef.child(category).child(recordId);
+        await recordRef.set(record);
+        console.log(`✅ Saved to cloud: ${category}/${record.code}`);
+        updateSyncStatus('online', 'Saved to Cloud ✅');
+        return { success: true };
+    } catch (error) {
+        console.error('Cloud save error:', error);
+        updateSyncStatus('offline', 'Cloud Save Failed');
+        return { success: false, reason: error.message };
+    }
+}
+
+// Load cloud data on start
+async function loadCloudDataOnStart() {
     if (!isOnline || cloudDataLoaded) return;
     
     updateSyncStatus('syncing', 'Loading from Cloud...');
+    console.log('🔄 Loading cloud data...');
     
-    cloudDBRef.once('value')
-        .then((snapshot) => {
-            const cloudData = snapshot.val();
+    try {
+        const snapshot = await cloudDBRef.once('value');
+        const cloudData = snapshot.val();
+        
+        if (cloudData) {
+            let mergedCount = 0;
             
-            if (cloudData && (cloudData.children || cloudData.youth || cloudData.pilgrims)) {
-                const cloudHasData = (cloudData.children && Object.values(cloudData.children).length > 0) ||
-                                    (cloudData.youth && Object.values(cloudData.youth).length > 0) ||
-                                    (cloudData.pilgrims && Object.values(cloudData.pilgrims).length > 0);
-                
-                const localHasData = database.children.length > 0 || database.youth.length > 0 || database.pilgrims.length > 0;
-                
-                // If cloud has data and local is empty, load from cloud
-                if (cloudHasData && !localHasData) {
-                    database.children = cloudData.children ? Object.values(cloudData.children) : [];
-                    database.youth = cloudData.youth ? Object.values(cloudData.youth) : [];
-                    database.pilgrims = cloudData.pilgrims ? Object.values(cloudData.pilgrims) : [];
-                    youthCountGlobal = database.youth.length;
-                    localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
-                    updateSyncStatus('online', 'Loaded from Cloud ✅');
-                    console.log('✅ Cloud data loaded on page start. Total records:', 
-                               database.children.length + database.youth.length + database.pilgrims.length);
-                } 
-                // If both have data, merge (prefer cloud for conflicts)
-                else if (cloudHasData && localHasData) {
-                    // Merge cloud data with local (cloud takes precedence)
-                    const existingNames = new Set();
-                    database.children.forEach(c => existingNames.add(c.name.toLowerCase() + c.age + c.phone));
-                    database.youth.forEach(y => existingNames.add(y.name.toLowerCase() + y.age + y.phone));
-                    database.pilgrims.forEach(p => existingNames.add(p.name.toLowerCase() + p.age + p.phone));
-                    
-                    let mergedCount = 0;
-                    if (cloudData.children) {
-                        Object.values(cloudData.children).forEach(child => {
-                            const key = child.name.toLowerCase() + child.age + child.phone;
-                            if (!existingNames.has(key)) {
-                                database.children.push(child);
-                                existingNames.add(key);
-                                mergedCount++;
-                            }
-                        });
+            if (cloudData.children) {
+                const cloudChildren = Object.values(cloudData.children);
+                cloudChildren.forEach(child => {
+                    if (!database.children.some(c => c.code === child.code)) {
+                        database.children.push(child);
+                        mergedCount++;
                     }
-                    if (cloudData.youth) {
-                        Object.values(cloudData.youth).forEach(youth => {
-                            const key = youth.name.toLowerCase() + youth.age + youth.phone;
-                            if (!existingNames.has(key)) {
-                                database.youth.push(youth);
-                                existingNames.add(key);
-                                mergedCount++;
-                            }
-                        });
-                    }
-                    if (cloudData.pilgrims) {
-                        Object.values(cloudData.pilgrims).forEach(pilgrim => {
-                            const key = pilgrim.name.toLowerCase() + pilgrim.age + pilgrim.phone;
-                            if (!existingNames.has(key)) {
-                                database.pilgrims.push(pilgrim);
-                                existingNames.add(key);
-                                mergedCount++;
-                            }
-                        });
-                    }
-                    
-                    if (mergedCount > 0) {
-                        localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
-                        updateSyncStatus('online', `Merged ${mergedCount} records from cloud ✅`);
-                        console.log(`✅ Merged ${mergedCount} new records from cloud`);
-                    } else {
-                        updateSyncStatus('online', 'Already in sync ✅');
-                    }
-                }
-                
-                cloudDataLoaded = true;
-            } else {
-                updateSyncStatus('online', 'Ready - Cloud empty');
+                });
             }
-        })
-        .catch((error) => {
-            console.error('Cloud load error:', error);
-            updateSyncStatus('offline', 'Using local data');
-        });
-}
-
-db.ref('.info/connected').on('value', (snap) => {
-    if (snap.val() === true) {
-        isOnline = true;
-        updateSyncStatus('online', 'Connected to Cloud');
-        // Load cloud data when connection is established
-        loadCloudDataOnStart();
-        syncLocalToCloud();
-    } else {
-        isOnline = false;
-        updateSyncStatus('offline', 'Offline - Saving Locally');
+            
+            if (cloudData.youth) {
+                const cloudYouth = Object.values(cloudData.youth);
+                cloudYouth.forEach(youth => {
+                    if (!database.youth.some(y => y.code === youth.code)) {
+                        database.youth.push(youth);
+                        mergedCount++;
+                    }
+                });
+            }
+            
+            if (cloudData.pilgrims) {
+                const cloudPilgrims = Object.values(cloudData.pilgrims);
+                cloudPilgrims.forEach(pilgrim => {
+                    if (!database.pilgrims.some(p => p.code === pilgrim.code)) {
+                        database.pilgrims.push(pilgrim);
+                        mergedCount++;
+                    }
+                });
+            }
+            
+            if (mergedCount > 0) {
+                youthCountGlobal = database.youth.length;
+                localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                console.log(`✅ Loaded ${mergedCount} records from cloud`);
+                updateSyncStatus('online', `Loaded ${mergedCount} records ✅`);
+                
+                if (document.getElementById('adminPanel').style.display === 'block') {
+                    renderDashboardData();
+                }
+            } else {
+                updateSyncStatus('online', 'Already in sync');
+            }
+        } else {
+            console.log('Cloud is empty');
+            updateSyncStatus('online', 'Ready - Cloud empty');
+        }
+        cloudDataLoaded = true;
+    } catch (error) {
+        console.error('Cloud load error:', error);
+        updateSyncStatus('offline', 'Cannot reach cloud');
     }
-});
-
-function saveToCloud(record, category) {
-    if (!isOnline) return Promise.resolve();
-    
-    const newRecordRef = cloudDBRef.child(category).push();
-    return newRecordRef.set(record)
-        .then(() => {
-            updateSyncStatus('online', 'Saved to Cloud ✅');
-        })
-        .catch((error) => {
-            console.error('Cloud save error:', error);
-            updateSyncStatus('offline', 'Cloud Save Failed');
-        });
 }
 
-function syncLocalToCloud() {
+// Sync local to cloud
+async function syncLocalToCloud() {
     if (!isOnline || syncInProgress) return;
     
     syncInProgress = true;
     updateSyncStatus('syncing', 'Syncing to Cloud...');
+    console.log('🔄 Syncing local data to cloud...');
     
-    const promises = [];
-    
-    // Clear cloud and re-upload all data (ensures consistency)
-    return cloudDBRef.remove()
-        .then(() => {
-            database.children.forEach((record, index) => {
-                promises.push(cloudDBRef.child('children').child(`child_${index}`).set(record));
-            });
-            database.youth.forEach((record, index) => {
-                promises.push(cloudDBRef.child('youth').child(`youth_${index}`).set(record));
-            });
-            database.pilgrims.forEach((record, index) => {
-                promises.push(cloudDBRef.child('pilgrims').child(`pilgrim_${index}`).set(record));
-            });
-            return Promise.all(promises);
-        })
-        .then(() => {
-            updateSyncStatus('online', 'Cloud Sync Complete ✅');
-            syncInProgress = false;
-        })
-        .catch((error) => {
-            console.error('Sync error:', error);
-            updateSyncStatus('offline', 'Sync Failed');
-            syncInProgress = false;
-        });
+    try {
+        const snapshot = await cloudDBRef.once('value');
+        const cloudData = snapshot.val() || {};
+        
+        const promises = [];
+        let syncCount = 0;
+        
+        for (const child of database.children) {
+            const existsInCloud = cloudData.children && 
+                Object.values(cloudData.children).some(c => c.code === child.code);
+            if (!existsInCloud) {
+                const recordId = `child_${child.code}_${Date.now()}`;
+                promises.push(cloudDBRef.child('children').child(recordId).set(child));
+                syncCount++;
+            }
+        }
+        
+        for (const youth of database.youth) {
+            const existsInCloud = cloudData.youth && 
+                Object.values(cloudData.youth).some(y => y.code === youth.code);
+            if (!existsInCloud) {
+                const recordId = `youth_${youth.code}_${Date.now()}`;
+                promises.push(cloudDBRef.child('youth').child(recordId).set(youth));
+                syncCount++;
+            }
+        }
+        
+        for (const pilgrim of database.pilgrims) {
+            const existsInCloud = cloudData.pilgrims && 
+                Object.values(cloudData.pilgrims).some(p => p.code === pilgrim.code);
+            if (!existsInCloud) {
+                const recordId = `pilgrim_${pilgrim.code}_${Date.now()}`;
+                promises.push(cloudDBRef.child('pilgrims').child(recordId).set(pilgrim));
+                syncCount++;
+            }
+        }
+        
+        if (promises.length > 0) {
+            await Promise.all(promises);
+            console.log(`✅ Synced ${syncCount} records to cloud`);
+            updateSyncStatus('online', `Synced ${syncCount} records ✅`);
+        } else {
+            updateSyncStatus('online', 'Already in sync');
+        }
+    } catch (error) {
+        console.error('Sync error:', error);
+        updateSyncStatus('offline', 'Sync failed');
+    } finally {
+        syncInProgress = false;
+    }
 }
 
-function syncFromCloud() {
+// Force sync from cloud
+async function syncFromCloud() {
     if (!isOnline) {
         alert('⚠️ You are offline. Cannot sync from cloud.');
         return;
@@ -1333,45 +1327,89 @@ function syncFromCloud() {
     syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
     
     updateSyncStatus('syncing', 'Downloading from Cloud...');
+    console.log('🔄 Manual sync from cloud initiated...');
     
-    cloudDBRef.once('value')
-        .then((snapshot) => {
-            const cloudData = snapshot.val();
+    try {
+        const snapshot = await cloudDBRef.once('value');
+        const cloudData = snapshot.val();
+        
+        if (cloudData) {
+            let newCount = 0;
             
-            if (cloudData) {
-                database.children = cloudData.children ? Object.values(cloudData.children) : [];
-                database.youth = cloudData.youth ? Object.values(cloudData.youth) : [];
-                database.pilgrims = cloudData.pilgrims ? Object.values(cloudData.pilgrims) : [];
-                
-                youthCountGlobal = database.youth.length;
-                localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
-                cloudDataLoaded = true;
-                
-                updateSyncStatus('online', 'Downloaded from Cloud ✅');
-                renderDashboardData();
-                
-                alert(`✅ Successfully synced from cloud!\n\nChildren: ${database.children.length}\nYouth: ${database.youth.length}\nPilgrims: ${database.pilgrims.length}`);
-            } else {
-                updateSyncStatus('online', 'Cloud is empty');
-                alert('ℹ️ No data found in cloud. Cloud database is empty.');
+            if (cloudData.children) {
+                const cloudChildren = Object.values(cloudData.children);
+                cloudChildren.forEach(child => {
+                    if (!database.children.some(c => c.code === child.code)) {
+                        database.children.push(child);
+                        newCount++;
+                    }
+                });
             }
             
-            syncBtn.disabled = false;
-            syncBtn.textContent = '☁️ Sync from Cloud';
-        })
-        .catch((error) => {
-            console.error('Download error:', error);
-            updateSyncStatus('offline', 'Download Failed');
-            alert('❌ Failed to sync from cloud. Check your connection.');
-            syncBtn.disabled = false;
-            syncBtn.textContent = '☁️ Sync from Cloud';
-        });
+            if (cloudData.youth) {
+                const cloudYouth = Object.values(cloudData.youth);
+                cloudYouth.forEach(youth => {
+                    if (!database.youth.some(y => y.code === youth.code)) {
+                        database.youth.push(youth);
+                        newCount++;
+                    }
+                });
+            }
+            
+            if (cloudData.pilgrims) {
+                const cloudPilgrims = Object.values(cloudData.pilgrims);
+                cloudPilgrims.forEach(pilgrim => {
+                    if (!database.pilgrims.some(p => p.code === pilgrim.code)) {
+                        database.pilgrims.push(pilgrim);
+                        newCount++;
+                    }
+                });
+            }
+            
+            if (newCount > 0) {
+                youthCountGlobal = database.youth.length;
+                localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                renderDashboardData();
+                updateSyncStatus('online', `Downloaded ${newCount} records ✅`);
+                alert(`✅ Synced ${newCount} new records from cloud!`);
+            } else {
+                updateSyncStatus('online', 'Already in sync');
+                alert('✅ Database is already in sync with cloud!');
+            }
+        } else {
+            updateSyncStatus('online', 'Cloud is empty');
+            alert('ℹ️ No data found in cloud.');
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        updateSyncStatus('offline', 'Download Failed');
+        alert('❌ Failed to sync from cloud. Check Firebase rules.');
+    } finally {
+        syncBtn.disabled = false;
+        syncBtn.textContent = '☁️ Sync from Cloud';
+    }
 }
 
-// ==================== DUPLICATE CHECK FUNCTION ====================
+// Monitor connection status
+db.ref('.info/connected').on('value', async (snap) => {
+    if (snap.val() === true) {
+        console.log('✅ Firebase connected');
+        isOnline = true;
+        updateSyncStatus('online', 'Connected to Cloud');
+        
+        if (!cloudDataLoaded) {
+            await loadCloudDataOnStart();
+        }
+        await syncLocalToCloud();
+    } else {
+        console.log('⚠️ Firebase disconnected');
+        isOnline = false;
+        updateSyncStatus('offline', 'Offline - Saving Locally');
+    }
+});
+
+// ==================== DUPLICATE CHECK ====================
 function checkDuplicate(name, age, phone) {
-    // Check ALL categories (children, youth, pilgrims) for duplicates
-    // Uses Name + Age + Phone Number combination
     for (let cat of ['children', 'youth', 'pilgrims']) {
         const found = database[cat].find(r => 
             r.name.toLowerCase() === name.toLowerCase() && 
@@ -1379,17 +1417,12 @@ function checkDuplicate(name, age, phone) {
             r.phone === phone
         );
         if (found) {
-            return {
-                isDuplicate: true,
-                category: cat,
-                existingRecord: found
-            };
+            return { isDuplicate: true, category: cat, existingRecord: found };
         }
     }
     return { isDuplicate: false };
 }
 
-// ==================== DUPLICATE MODAL FUNCTIONS ====================
 function showDuplicateModal(duplicateInfo, formType) {
     lastDuplicateInfo = duplicateInfo;
     lastFormType = formType;
@@ -1403,7 +1436,6 @@ function showDuplicateModal(duplicateInfo, formType) {
         <p><strong>📞 Phone:</strong> ${duplicateInfo.existingRecord.phone}</p>
         <p><strong>📋 Category:</strong> ${categoryLabel}</p>
         <p><strong>🏷️ Existing Code:</strong> <span class="code-highlight">${duplicateInfo.existingRecord.code}</span></p>
-        <p><strong>📅 Registered On:</strong> ${duplicateInfo.existingRecord.registeredAt ? new Date(duplicateInfo.existingRecord.registeredAt).toLocaleDateString() : 'N/A'}</p>
     `;
     
     document.getElementById('duplicateModal').style.display = 'flex';
@@ -1411,8 +1443,6 @@ function showDuplicateModal(duplicateInfo, formType) {
 
 function closeDuplicateModal() {
     document.getElementById('duplicateModal').style.display = 'none';
-    lastDuplicateInfo = null;
-    // Re-enable the submit button on the form
     if (lastFormType) {
         const submitBtn = document.getElementById(lastFormType + 'SubmitBtn');
         if (submitBtn) {
@@ -1424,20 +1454,15 @@ function closeDuplicateModal() {
 
 function closeDuplicateAndVerify() {
     document.getElementById('duplicateModal').style.display = 'none';
-    
-    // Close current form modal
     if (lastFormType === 'child') closeModal('childModal');
     else if (lastFormType === 'youth') closeModal('youthModal');
     else if (lastFormType === 'pilgrim') closeModal('pilgrimModal');
     
-    // Pre-fill verify modal with the name
     if (lastDuplicateInfo && lastDuplicateInfo.existingRecord) {
         document.getElementById('v_search').value = lastDuplicateInfo.existingRecord.name;
     }
     
-    // Open verify modal
     openModal('verifyModal');
-    
     lastDuplicateInfo = null;
 }
 
@@ -1500,24 +1525,19 @@ window.onclick = function(event) {
     }
 }
 
-// ==================== REGISTRATION FUNCTION WITH 3-FIELD DUPLICATE CHECK ====================
+// ==================== REGISTRATION FUNCTION ====================
 async function handleRegistration(event, type) {
     event.preventDefault();
     
-    // Disable submit button
     const submitBtnId = type === 'children' ? 'childSubmitBtn' : type === 'youth' ? 'youthSubmitBtn' : 'pilgrimSubmitBtn';
     const submitBtn = document.getElementById(submitBtnId);
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span> Checking for duplicates...';
+    submitBtn.innerHTML = '<span class="spinner"></span> Checking...';
     
     let record = {};
     let codePrefix = "";
-    let category = type;
-    let name = '';
-    let age = '';
-    let phone = '';
+    let name = '', age = '', phone = '';
     
-    // Collect data based on type
     if (type === 'children') {
         name = document.getElementById('c_name').value.trim();
         age = document.getElementById('c_age').value;
@@ -1532,79 +1552,51 @@ async function handleRegistration(event, type) {
         phone = document.getElementById('p_phone').value.trim();
     }
     
-    // ==================== 3-FIELD DUPLICATE CHECK: NAME + AGE + PHONE ====================
     const duplicateResult = checkDuplicate(name, parseInt(age), phone);
     
     if (duplicateResult.isDuplicate) {
-        // Show duplicate warning modal
         showDuplicateModal(duplicateResult, type === 'children' ? 'child' : type === 'youth' ? 'youth' : 'pilgrim');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Registration';
         return;
     }
     
-    // ==================== PROCEED WITH REGISTRATION ====================
     submitBtn.innerHTML = '<span class="spinner"></span> Registering...';
     
     let nextIndex = database[type].length + 1;
     
     if (type === 'children') {
         record = {
-            name: name,
-            age: parseInt(age),
-            gender: document.getElementById('c_gender').value,
-            fellowship: document.getElementById('c_fellowship').value,
-            church: document.getElementById('c_church').value,
-            school: document.getElementById('c_school').value || 'N/A',
-            className: document.getElementById('c_class').value || 'N/A',
-            phone: phone,
-            parent: document.getElementById('c_parent').value,
-            suMember: document.getElementById('c_su_member').value,
-            firstTime: document.getElementById('c_first_time').value,
-            hostel: 'N/A',
-            team: 'N/A',
-            bibleStudyCenter: 'Children Unit'
+            name: name, age: parseInt(age), gender: document.getElementById('c_gender').value,
+            fellowship: document.getElementById('c_fellowship').value, church: document.getElementById('c_church').value,
+            school: document.getElementById('c_school').value || 'N/A', className: document.getElementById('c_class').value || 'N/A',
+            phone: phone, parent: document.getElementById('c_parent').value,
+            suMember: document.getElementById('c_su_member').value, firstTime: document.getElementById('c_first_time').value,
+            hostel: 'N/A', team: 'N/A', bibleStudyCenter: 'Children Unit'
         };
         codePrefix = "SU2026LVCC";
     } else if (type === 'youth') {
         const assignedTeam = campTeamsAndBibleStudies[youthCountGlobal % campTeamsAndBibleStudies.length];
-        
         record = {
-            name: name,
-            age: parseInt(age),
-            gender: document.getElementById('y_gender').value,
-            fellowship: document.getElementById('y_fellowship').value,
-            church: document.getElementById('y_church').value,
-            school: document.getElementById('y_school').value || 'N/A',
-            className: document.getElementById('y_class').value || 'N/A',
-            category: document.getElementById('y_category').value,
-            phone: phone,
-            parent: document.getElementById('y_parent').value,
-            suMember: document.getElementById('y_su_member').value,
-            firstTime: document.getElementById('y_first_time').value,
-            team: assignedTeam,
-            bibleStudyCenter: assignedTeam,
-            hostel: ''
+            name: name, age: parseInt(age), gender: document.getElementById('y_gender').value,
+            fellowship: document.getElementById('y_fellowship').value, church: document.getElementById('y_church').value,
+            school: document.getElementById('y_school').value || 'N/A', className: document.getElementById('y_class').value || 'N/A',
+            category: document.getElementById('y_category').value, phone: phone, parent: document.getElementById('y_parent').value,
+            suMember: document.getElementById('y_su_member').value, firstTime: document.getElementById('y_first_time').value,
+            team: assignedTeam, bibleStudyCenter: assignedTeam, hostel: ''
         };
-        
         record.hostel = (record.gender === 'Female') ? 
             femaleHostels[youthCountGlobal % femaleHostels.length] : 
             maleHostels[youthCountGlobal % maleHostels.length];
-            
         codePrefix = "SU2026LVCY";
         youthCountGlobal++;
     } else if (type === 'pilgrims') {
         record = {
-            name: name,
-            age: parseInt(age),
-            gender: document.getElementById('p_gender').value,
-            fellowship: document.getElementById('p_fellowship').value,
-            church: document.getElementById('p_church').value,
-            phone: phone,
-            office: document.getElementById('p_office').value,
-            suMember: document.getElementById('p_su_member').value,
-            firstTime: document.getElementById('p_first_time').value,
-            hostel: 'Pilgrim Lodge',
-            team: 'Officers Team',
-            bibleStudyCenter: 'Officers Bible Study'
+            name: name, age: parseInt(age), gender: document.getElementById('p_gender').value,
+            fellowship: document.getElementById('p_fellowship').value, church: document.getElementById('p_church').value,
+            phone: phone, office: document.getElementById('p_office').value,
+            suMember: document.getElementById('p_su_member').value, firstTime: document.getElementById('p_first_time').value,
+            hostel: 'Pilgrim Lodge', team: 'Officers Team', bibleStudyCenter: 'Officers Bible Study'
         };
         codePrefix = "SU2026LVCP";
     }
@@ -1616,22 +1608,20 @@ async function handleRegistration(event, type) {
     // Save locally
     database[type].push(record);
     localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+    console.log('✅ Saved locally:', record.code);
     
-    // Save to Firebase cloud
+    // Save to cloud
     if (isOnline) {
-        try {
-            await saveToCloud(record, type);
-        } catch (error) {
-            console.error('Cloud save error:', error);
+        const result = await saveToCloud(record, type);
+        if (!result.success) {
+            console.warn('⚠️ Local save only, cloud save failed');
         }
     } else {
-        updateSyncStatus('offline', 'Saved Locally - Will sync when online');
+        console.log('Offline mode - saved locally only');
     }
     
-    // Reset button
     submitBtn.disabled = false;
     submitBtn.textContent = 'Submit Registration';
-    
     closeModal(type + 'Modal');
     displaySuccess(record, type);
 }
@@ -1663,7 +1653,6 @@ function handleVerification(event) {
     }
 }
 
-// ==================== DISPLAY SUCCESS ====================
 function displaySuccess(record, type) {
     document.getElementById('mainFrontPage').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'none';
@@ -1686,15 +1675,9 @@ function displaySuccess(record, type) {
         `;
     }
     
-    html += `
-        <br>
-        <p style="background: #fff3cd; padding: 10px; border-radius: 5px;">
-            <strong>📌 Please come with ₦700 to purchase camp materials such as the Bible study outline and Magazine.</strong>
-        </p>
-        <p style="font-size: 0.85rem; color: #666; margin-top: 10px;">
-            ⚠️ This registration is unique. Duplicate registration with same Name, Age & Phone is not allowed.
-        </p>
-    `;
+    html += `<br><p style="background: #fff3cd; padding: 10px; border-radius: 5px;">
+        <strong>📌 Please come with ₦700 to purchase camp materials.</strong>
+    </p>`;
     
     messageBox.innerHTML = html;
     document.getElementById('successScreen').style.display = 'block';
@@ -1705,7 +1688,7 @@ function closeSuccess() {
     document.getElementById('mainFrontPage').style.display = 'block';
 }
 
-// ==================== ADMIN LOGIN ====================
+// ==================== ADMIN FUNCTIONS ====================
 function adminLogin() {
     const pass = prompt("Enter Secure Admin Password:");
     if (pass === "SU2026Admin") {
@@ -1723,7 +1706,6 @@ function logoutAdmin() {
     document.getElementById('mainFrontPage').style.display = 'block';
 }
 
-// ==================== ADMIN TABS ====================
 function switchAdminTab(tabId, event) {
     document.querySelectorAll('.data-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.btn-admin-tab').forEach(el => el.classList.remove('active'));
@@ -1731,7 +1713,6 @@ function switchAdminTab(tabId, event) {
     if (event) event.currentTarget.classList.add('active');
 }
 
-// ==================== RENDER DASHBOARD ====================
 function renderDashboardData() {
     let y = database.youth || [];
     let c = database.children || [];
@@ -1846,7 +1827,7 @@ function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
     
     let tbody = document.createElement('tbody');
     if(dataList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:#999;">No members registered yet.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:#999;">No members registered yet.</td></table>`;
     } else {
         dataList.forEach(member => {
             let row = '<tr>';
@@ -1863,7 +1844,7 @@ function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
     return box;
 }
 
-// ==================== GLOBAL SEARCH ====================
+// ==================== SEARCH ====================
 function runGlobalMasterSearch() {
     const query = document.getElementById('adminGlobalMasterSearch').value.toLowerCase().trim();
     const badge = document.getElementById('globalSearchCounterBadge');
@@ -2087,11 +2068,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('adminCampDatePicker').value = systemConfig.targetDate;
     
-    // Trigger cloud load immediately
-    setTimeout(() => {
+    setTimeout(async () => {
         if (isOnline) {
-            loadCloudDataOnStart();
-            syncLocalToCloud();
+            await loadCloudDataOnStart();
+            await syncLocalToCloud();
         }
     }, 1000);
 });
