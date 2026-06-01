@@ -256,6 +256,49 @@
         color: #444;
     }
 
+    /* Mandatory Sync Modal */
+    .mandatory-sync-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9);
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        z-index: 10000;
+    }
+
+    .mandatory-sync-content {
+        background: white;
+        width: 90%;
+        max-width: 550px;
+        padding: 35px;
+        border-radius: 15px;
+        text-align: center;
+        border-top: 8px solid #f39c12;
+        animation: slideDown 0.3s ease;
+    }
+
+    .mandatory-sync-icon {
+        font-size: 4rem;
+        margin-bottom: 15px;
+    }
+
+    .mandatory-sync-content h2 {
+        color: #f39c12;
+        margin-bottom: 15px;
+    }
+
+    .mandatory-sync-content .info-box {
+        background: #fff3cd;
+        border: 1px solid #f39c12;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        text-align: left;
+    }
+
     /* Duplicate Warning Modal */
     .duplicate-modal {
         display: none;
@@ -302,11 +345,6 @@
         padding: 15px;
         margin: 15px 0;
         text-align: left;
-    }
-
-    .duplicate-content .info-box p {
-        margin: 5px 0;
-        font-size: 0.95rem;
     }
 
     .duplicate-content .info-box .code-highlight {
@@ -373,6 +411,19 @@
 
     .btn-verify {
         background-color: #3498db;
+    }
+
+    .btn-sync {
+        background-color: #f39c12;
+        color: #fff;
+    }
+
+    .btn-sync-large {
+        background-color: #f39c12;
+        color: #fff;
+        font-size: 1.2rem;
+        padding: 15px 30px;
+        margin-top: 20px;
     }
 
     .btn-confirm {
@@ -788,7 +839,6 @@
     <div class="animated-welcome">
         🎉 Welcome to Scripture Union Abakpa Zone 2026 Children, Student and Youth Long Vacation Camp 🎉
     </div>
-    
 
     <!-- Registration Cards -->
     <div class="container">
@@ -796,19 +846,19 @@
             <div class="card">
                 <h3>🧒 Children Registration Portal</h3>
                 <p>Register children for the 2026 LVC.</p>
-                <button onclick="openModal('childModal')">Register Child</button>
+                <button onclick="checkAndOpenModal('childModal')">Register Child</button>
             </div>
 
             <div class="card">
                 <h3>👨🎓 Youth Registration Portal</h3>
                 <p>Register youths for the 2026 LVC.</p>
-                <button onclick="openModal('youthModal')">Register Youth</button>
+                <button onclick="checkAndOpenModal('youthModal')">Register Youth</button>
             </div>
 
             <div class="card">
                 <h3>🙏 Pilgrim Registration Portal</h3>
                 <p>Register pilgrims and officers.</p>
-                <button onclick="openModal('pilgrimModal')">Register Pilgrim</button>
+                <button onclick="checkAndOpenModal('pilgrimModal')">Register Pilgrim</button>
             </div>
 
             <div class="card">
@@ -829,6 +879,24 @@
     </div>
 
     <button class="btn-confirm" onclick="adminLogin()">🔐 Admin Access Dashboard</button>
+</div>
+
+<!-- MANDATORY SYNC MODAL - Blocks registration until user syncs -->
+<div class="mandatory-sync-modal" id="mandatorySyncModal">
+    <div class="mandatory-sync-content">
+        <div class="mandatory-sync-icon">🔄</div>
+        <h2>⚠️ ACTION REQUIRED!</h2>
+        <div class="info-box">
+            <p style="font-size: 1.1rem; margin-bottom: 10px;"><strong>We found existing registration(s) on your device!</strong></p>
+            <p style="color: #856404;">You have <span id="pendingSyncCount">0</span> registration(s) that need to be synced to the central database.</p>
+            <hr style="margin: 10px 0;">
+            <p style="font-size: 0.9rem;"><strong>Why is this required?</strong></p>
+            <p style="font-size: 0.85rem;">Your previous registration(s) are only saved locally. Admin cannot see them until you sync.</p>
+        </div>
+        <p style="margin: 15px 0; color: #333;"><strong>Please click the button below to sync your data to the cloud.</strong><br>This only takes a few seconds.</p>
+        <button class="btn-sync-large" onclick="syncUserDataAndContinue()">📤 SYNC MY REGISTRATION NOW</button>
+        <p style="margin-top: 15px; font-size: 0.8rem; color: #999;">You cannot register new participants until you complete this sync.</p>
+    </div>
 </div>
 
 <!-- Duplicate Warning Modal -->
@@ -871,6 +939,7 @@
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
         <h2>📊 Secure Admin Management System</h2>
         <div>
+            <button style="background:#9b59b6; margin-right:10px;" onclick="recoverAllLocalData()">🔄 Recover Local Data</button>
             <button style="background:#2980b9; margin-right:10px;" onclick="syncFromCloud()">☁️ Sync from Cloud</button>
             <button style="background:#e74c3c; color:white; padding:8px 15px; font-size:0.9rem;" onclick="logoutAdmin()">Logout</button>
         </div>
@@ -1117,6 +1186,7 @@ let syncInProgress = false;
 let lastDuplicateInfo = null;
 let lastFormType = null;
 let cloudDataLoaded = false;
+let pendingModalToOpen = null; // Store which modal to open after sync
 
 // ==================== ALLOCATION ARRAYS ====================
 const femaleHostels = ["JOY", "GRACE", "FAVOUR", "SERAH", "DEBORAH", "MARY"];
@@ -1149,6 +1219,154 @@ function changeBackground() {
 
 changeBackground();
 setInterval(changeBackground, 20000);
+
+// ==================== CHECK FOR UNSYNCED DATA ====================
+function checkForUnsyncedData() {
+    const localDB = JSON.parse(localStorage.getItem('su_camp_2026_db'));
+    if (!localDB) return false;
+    
+    const totalLocal = (localDB.children?.length || 0) + (localDB.youth?.length || 0) + (localDB.pilgrims?.length || 0);
+    if (totalLocal === 0) return false;
+    
+    // Check if data is already synced by comparing with current database
+    let unsyncedCount = 0;
+    
+    for (let child of localDB.children || []) {
+        if (!database.children.some(c => c.code === child.code)) unsyncedCount++;
+    }
+    for (let youth of localDB.youth || []) {
+        if (!database.youth.some(y => y.code === youth.code)) unsyncedCount++;
+    }
+    for (let pilgrim of localDB.pilgrims || []) {
+        if (!database.pilgrims.some(p => p.code === pilgrim.code)) unsyncedCount++;
+    }
+    
+    return unsyncedCount > 0 ? unsyncedCount : false;
+}
+
+// Check and block registration if unsynced data exists
+function checkAndOpenModal(modalId) {
+    const unsyncedCount = checkForUnsyncedData();
+    
+    if (unsyncedCount && isOnline) {
+        pendingModalToOpen = modalId;
+        const countSpan = document.getElementById('pendingSyncCount');
+        if (countSpan) countSpan.textContent = unsyncedCount;
+        document.getElementById('mandatorySyncModal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    } else {
+        openModal(modalId);
+    }
+}
+
+// Sync user data and then open the pending modal
+async function syncUserDataAndContinue() {
+    if (!isOnline) {
+        alert('⚠️ You are offline. Please check your internet connection and try again.');
+        return;
+    }
+    
+    const button = document.querySelector('#mandatorySyncModal .btn-sync-large');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner"></span> Syncing your data...';
+    
+    try {
+        const localData = localStorage.getItem('su_camp_2026_db');
+        
+        if (!localData) {
+            alert('No data found to sync.');
+            closeMandatorySyncModal();
+            button.disabled = false;
+            button.innerHTML = originalText;
+            return;
+        }
+        
+        const localDB = JSON.parse(localData);
+        const snapshot = await cloudDBRef.once('value');
+        const cloudData = snapshot.val() || {};
+        
+        let syncedCount = 0;
+        
+        // Sync children
+        for (let child of localDB.children || []) {
+            const existsInCloud = cloudData.children && 
+                Object.values(cloudData.children).some(c => c.code === child.code);
+            if (!existsInCloud) {
+                await cloudDBRef.child('children').push().set(child);
+                if (!database.children.some(c => c.code === child.code)) database.children.push(child);
+                syncedCount++;
+            } else {
+                if (!database.children.some(c => c.code === child.code)) database.children.push(child);
+            }
+        }
+        
+        // Sync youth
+        for (let youth of localDB.youth || []) {
+            const existsInCloud = cloudData.youth && 
+                Object.values(cloudData.youth).some(y => y.code === youth.code);
+            if (!existsInCloud) {
+                await cloudDBRef.child('youth').push().set(youth);
+                if (!database.youth.some(y => y.code === youth.code)) database.youth.push(youth);
+                syncedCount++;
+            } else {
+                if (!database.youth.some(y => y.code === youth.code)) database.youth.push(youth);
+            }
+        }
+        
+        // Sync pilgrims
+        for (let pilgrim of localDB.pilgrims || []) {
+            const existsInCloud = cloudData.pilgrims && 
+                Object.values(cloudData.pilgrims).some(p => p.code === pilgrim.code);
+            if (!existsInCloud) {
+                await cloudDBRef.child('pilgrims').push().set(pilgrim);
+                if (!database.pilgrims.some(p => p.code === pilgrim.code)) database.pilgrims.push(pilgrim);
+                syncedCount++;
+            } else {
+                if (!database.pilgrims.some(p => p.code === pilgrim.code)) database.pilgrims.push(pilgrim);
+            }
+        }
+        
+        // Update local database
+        youthCountGlobal = database.youth.length;
+        localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+        
+        updateSyncStatus('online', `Synced ${syncedCount} records! ✅`);
+        
+        // Close modal and show success
+        closeMandatorySyncModal();
+        
+        if (syncedCount > 0) {
+            alert(`✅ Success! ${syncedCount} registration(s) synced to central database.\n\nYou can now register new participants.`);
+        } else {
+            alert('✅ Your data was already synced!\n\nYou can now register new participants.');
+        }
+        
+        // Open the pending registration modal
+        if (pendingModalToOpen) {
+            openModal(pendingModalToOpen);
+            pendingModalToOpen = null;
+        }
+        
+        // Refresh admin view if open
+        if (document.getElementById('adminPanel').style.display === 'block') {
+            renderDashboardData();
+        }
+        
+    } catch (error) {
+        console.error('Sync error:', error);
+        alert('❌ Failed to sync. Please check your internet connection and try again.\n\nError: ' + error.message);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+}
+
+function closeMandatorySyncModal() {
+    document.getElementById('mandatorySyncModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    pendingModalToOpen = null;
+}
 
 // ==================== FIREBASE SYNC FUNCTIONS ====================
 function updateSyncStatus(status, text) {
@@ -1255,63 +1473,60 @@ async function loadCloudDataOnStart() {
     }
 }
 
-// Sync local to cloud
-async function syncLocalToCloud() {
-    if (!isOnline || syncInProgress) return;
+// Recover all local data (for admin use)
+async function recoverAllLocalData() {
+    if (!isOnline) {
+        alert('⚠️ You need to be online to recover data to cloud!');
+        return;
+    }
     
-    syncInProgress = true;
-    updateSyncStatus('syncing', 'Syncing to Cloud...');
-    console.log('🔄 Syncing local data to cloud...');
+    const confirmed = confirm('⚠️ This will scan your browser for any registrations and push them to cloud.\n\nClick OK to proceed.');
+    if (!confirmed) return;
     
-    try {
+    updateSyncStatus('syncing', 'Recovering local data...');
+    
+    const localDB = JSON.parse(localStorage.getItem('su_camp_2026_db'));
+    let recoveredCount = 0;
+    
+    if (localDB) {
         const snapshot = await cloudDBRef.once('value');
         const cloudData = snapshot.val() || {};
         
-        const promises = [];
-        let syncCount = 0;
-        
-        for (const child of database.children) {
-            const existsInCloud = cloudData.children && 
-                Object.values(cloudData.children).some(c => c.code === child.code);
-            if (!existsInCloud) {
-                const recordId = `child_${child.code}_${Date.now()}`;
-                promises.push(cloudDBRef.child('children').child(recordId).set(child));
-                syncCount++;
+        for (let child of localDB.children || []) {
+            const exists = cloudData.children && Object.values(cloudData.children).some(c => c.code === child.code);
+            if (!exists) {
+                await cloudDBRef.child('children').push().set(child);
+                if (!database.children.some(c => c.code === child.code)) database.children.push(child);
+                recoveredCount++;
             }
         }
         
-        for (const youth of database.youth) {
-            const existsInCloud = cloudData.youth && 
-                Object.values(cloudData.youth).some(y => y.code === youth.code);
-            if (!existsInCloud) {
-                const recordId = `youth_${youth.code}_${Date.now()}`;
-                promises.push(cloudDBRef.child('youth').child(recordId).set(youth));
-                syncCount++;
+        for (let youth of localDB.youth || []) {
+            const exists = cloudData.youth && Object.values(cloudData.youth).some(y => y.code === youth.code);
+            if (!exists) {
+                await cloudDBRef.child('youth').push().set(youth);
+                if (!database.youth.some(y => y.code === youth.code)) database.youth.push(youth);
+                recoveredCount++;
             }
         }
         
-        for (const pilgrim of database.pilgrims) {
-            const existsInCloud = cloudData.pilgrims && 
-                Object.values(cloudData.pilgrims).some(p => p.code === pilgrim.code);
-            if (!existsInCloud) {
-                const recordId = `pilgrim_${pilgrim.code}_${Date.now()}`;
-                promises.push(cloudDBRef.child('pilgrims').child(recordId).set(pilgrim));
-                syncCount++;
+        for (let pilgrim of localDB.pilgrims || []) {
+            const exists = cloudData.pilgrims && Object.values(cloudData.pilgrims).some(p => p.code === pilgrim.code);
+            if (!exists) {
+                await cloudDBRef.child('pilgrims').push().set(pilgrim);
+                if (!database.pilgrims.some(p => p.code === pilgrim.code)) database.pilgrims.push(pilgrim);
+                recoveredCount++;
             }
         }
         
-        if (promises.length > 0) {
-            await Promise.all(promises);
-            console.log(`✅ Synced ${syncCount} records to cloud`);
-            updateSyncStatus('online', `Synced ${syncCount} records ✅`);
-        } else {
-            updateSyncStatus('online', 'Already in sync');
-        }
-    } catch (error) {
-        console.error('Sync error:', error);
-        updateSyncStatus('offline', 'Sync failed');
-    } finally {
-        syncInProgress = false;
+        localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+        youthCountGlobal = database.youth.length;
+        renderDashboardData();
+        
+        updateSyncStatus('online', `Recovered ${recoveredCount} records! ✅`);
+        alert(`✅ Successfully recovered ${recoveredCount} records to cloud!\n\nTotal: ${database.children.length + database.youth.length + database.pilgrims.length} registrations`);
+    } else {
+        alert('No local data found in this browser.');
     }
 }
 
@@ -1327,7 +1542,6 @@ async function syncFromCloud() {
     syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
     
     updateSyncStatus('syncing', 'Downloading from Cloud...');
-    console.log('🔄 Manual sync from cloud initiated...');
     
     try {
         const snapshot = await cloudDBRef.once('value');
@@ -1400,7 +1614,7 @@ db.ref('.info/connected').on('value', async (snap) => {
         if (!cloudDataLoaded) {
             await loadCloudDataOnStart();
         }
-        await syncLocalToCloud();
+        
     } else {
         console.log('⚠️ Firebase disconnected');
         isOnline = false;
@@ -1522,6 +1736,9 @@ window.onclick = function(event) {
     }
     if (event.target.classList.contains('duplicate-modal')) {
         closeDuplicateModal();
+    }
+    if (event.target.classList.contains('mandatory-sync-modal')) {
+        closeMandatorySyncModal();
     }
 }
 
@@ -1823,11 +2040,11 @@ function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
     table.id = tableId;
     
     let headerLabels = columns.map(col => col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, ' $1'));
-    table.innerHTML = `<thead><tr>${headerLabels.map(label => `<th>${label}</th>`).join('')}</thead>`;
+    table.innerHTML = `<thead><tr>${headerLabels.map(label => `<th>${label}</th>`).join('')}</tr></thead>`;
     
     let tbody = document.createElement('tbody');
     if(dataList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:#999;">No members registered yet.</td></table>`;
+        tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:#999;">No members registered yet.</td></tr>`;
     } else {
         dataList.forEach(member => {
             let row = '<tr>';
@@ -2071,7 +2288,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(async () => {
         if (isOnline) {
             await loadCloudDataOnStart();
-            await syncLocalToCloud();
         }
     }, 1000);
 });
