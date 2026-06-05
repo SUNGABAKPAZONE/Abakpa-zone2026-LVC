@@ -2341,31 +2341,37 @@ function generateBulkIDCardsPDF() {
 }
 
 // ==================== EVENT LISTENERS ====================
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('childForm').addEventListener('submit', function(e) {
-        handleRegistration(e, 'children');
-    });
-    
-    document.getElementById('youthForm').addEventListener('submit', function(e) {
-        handleRegistration(e, 'youth');
-    });
-    
-    document.getElementById('pilgrimForm').addEventListener('submit', function(e) {
-        handleRegistration(e, 'pilgrims');
-    });
-    
-    document.getElementById('verifyForm').addEventListener('submit', function(e) {
-        handleVerification(e);
-    });
-    
-    document.getElementById('adminCampDatePicker').value = systemConfig.targetDate;
-    
-    setTimeout(async () => {
-        if (isOnline) {
-            await loadCloudDataOnStart();
-        }
-    }, 1000);
-});
+// Attach immediately (DOMContentLoaded has already fired by the time module loads)
+try {
+    const childForm = document.getElementById('childForm');
+    if (childForm) childForm.addEventListener('submit', function(e) { handleRegistration(e, 'children'); });
+} catch(e) { console.warn('childForm error:', e); }
+
+try {
+    const youthForm = document.getElementById('youthForm');
+    if (youthForm) youthForm.addEventListener('submit', function(e) { handleRegistration(e, 'youth'); });
+} catch(e) { console.warn('youthForm error:', e); }
+
+try {
+    const pilgrimForm = document.getElementById('pilgrimForm');
+    if (pilgrimForm) pilgrimForm.addEventListener('submit', function(e) { handleRegistration(e, 'pilgrims'); });
+} catch(e) { console.warn('pilgrimForm error:', e); }
+
+try {
+    const verifyForm = document.getElementById('verifyForm');
+    if (verifyForm) verifyForm.addEventListener('submit', function(e) { handleVerification(e); });
+} catch(e) { console.warn('verifyForm error:', e); }
+
+try {
+    const picker = document.getElementById('adminCampDatePicker');
+    if (picker) picker.value = systemConfig.targetDate;
+} catch(e) { console.warn('adminCampDatePicker error:', e); }
+
+setTimeout(async () => {
+    if (isOnline) {
+        try { await loadCloudDataOnStart(); } catch(e) { console.warn('loadCloudDataOnStart error:', e); }
+    }
+}, 1000);
 </script>
 
 </body>
