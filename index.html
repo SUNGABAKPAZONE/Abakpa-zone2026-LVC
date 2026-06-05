@@ -1015,7 +1015,7 @@
         <div class="table-responsive">
             <table id="tableYouthData">
                 <thead>
-                    <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Category</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th><th>Hostel</th><th>Team</th><th>Bible Study</th></tr>
+                    <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Category</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th><th>Hostel</th><th>Team</th><th>Bible Study</th><th>Actions</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -1034,7 +1034,7 @@
         <div class="table-responsive">
             <table id="tableChildrenData">
                 <thead>
-                    <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th></tr>
+                    <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th><th>Actions</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -1053,7 +1053,7 @@
         <div class="table-responsive">
             <table id="tablePilgrimsData">
                 <thead>
-                    <tr><th>Code</th><th>Name</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>Phone</th><th>Office Held</th><th>SU Member?</th><th>1st Time?</th></tr>
+                    <tr><th>Code</th><th>Name</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>Phone</th><th>Office Held</th><th>SU Member?</th><th>1st Time?</th><th>Actions</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -1993,6 +1993,7 @@ function logoutAdmin() {
     try { if (typeof closeSuccess === 'function') window.closeSuccess = closeSuccess; } catch(e){}
     try { if (typeof switchAdminTab === 'function') window.switchAdminTab = switchAdminTab; } catch(e){}
     try { if (typeof runGlobalMasterSearch === 'function') window.runGlobalMasterSearch = runGlobalMasterSearch; } catch(e){}
+    try { if (typeof deleteParticipant === 'function') window.deleteParticipant = deleteParticipant; } catch(e){}
 })();
 
 function switchAdminTab(tabId, event) {
@@ -2034,7 +2035,7 @@ function populateTable(tableId, data, keys) {
     let tbody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
     tbody.innerHTML = "";
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="' + keys.length + '" style="text-align:center; padding:20px;">No records yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="' + (keys.length + 1) + '" style="text-align:center; padding:20px;">No records yet</td></tr>';
         return;
     }
     data.forEach(row => {
@@ -2044,8 +2045,69 @@ function populateTable(tableId, data, keys) {
             td.textContent = row[k] || 'N/A';
             tr.appendChild(td);
         });
+        
+        // Add Delete Button in Actions column
+        let tdAction = document.createElement('td');
+        let btnDel = document.createElement('button');
+        btnDel.className = 'btn-danger';
+        btnDel.style.cssText = 'padding: 4px 8px; margin: 0; font-size: 0.8rem; border-radius: 4px;';
+        btnDel.textContent = '❌ Delete';
+        btnDel.onclick = function() {
+            deleteParticipant(row.code, tableId);
+        };
+        tdAction.appendChild(btnDel);
+        tr.appendChild(tdAction);
+        
         tbody.appendChild(tr);
     });
+}
+
+async function deleteParticipant(code, tableId) {
+    const confirmed = confirm(`⚠️ Are you sure you want to delete participant with code ${code}?`);
+    if (!confirmed) return;
+    
+    let category = '';
+    if (tableId === 'tableYouthData') category = 'youth';
+    else if (tableId === 'tableChildrenData') category = 'children';
+    else if (tableId === 'tablePilgrimsData') category = 'pilgrims';
+    
+    if (!category) return;
+    
+    // Remove from local database
+    database[category] = database[category].filter(item => item.code !== code);
+    localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+    
+    if (category === 'youth') {
+        youthCountGlobal = database.youth.length;
+    }
+    
+    // Update Firebase Cloud if online
+    if (isOnline) {
+        updateSyncStatus('syncing', 'Deleting from Cloud...');
+        try {
+            const categoryRef = child(cloudDBRef, category);
+            const snapshot = await get(categoryRef);
+            const cloudData = snapshot.val();
+            if (cloudData) {
+                const dbKey = Object.keys(cloudData).find(key => cloudData[key].code === code);
+                if (dbKey) {
+                    await set(child(categoryRef, dbKey), null);
+                    console.log('✅ Deleted from Firebase:', dbKey);
+                    updateSyncStatus('online', 'Deleted from Cloud ✅');
+                } else {
+                    console.log('Record not found in Firebase (possibly already deleted).');
+                    updateSyncStatus('online', 'Not found in Cloud');
+                }
+            }
+        } catch (error) {
+            console.error('Firebase delete error:', error);
+            updateSyncStatus('offline', 'Cloud Delete Failed');
+            alert('❌ Failed to delete from Firebase cloud. Check your connection.');
+        }
+    }
+    
+    // Re-render dashboard tables
+    renderDashboardData();
 }
 
 function buildCountReport(tableId, dataset, keyField) {
