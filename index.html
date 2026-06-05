@@ -6,8 +6,6 @@
 <title>2026 Scripture Union LVC & Admin Portal</title>
 
 <!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-database-compat.js"></script>
 
 <style>
     :root {
@@ -1155,30 +1153,31 @@
     Scripture Union Nigeria © 2026 | Abakpa Zone Ngwo Area
 </footer>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
+import { getDatabase, ref, child, get, push, set, onValue, onChildAdded, onChildChanged, onChildRemoved, off } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+
 // ==================== FIREBASE CONFIGURATION ====================
 const firebaseConfig = {
-    apiKey: "AIzaSyA0RKmUvpf946ZMivPTsN8QqmNkGfPqDn8",
-    authDomain: "su-abakpa-zone-lvc.firebaseapp.com",
-    databaseURL: "https://su-abakpa-zone-lvc-default-rtdb.firebaseio.com",
-    projectId: "su-abakpa-zone-lvc",
-    storageBucket: "su-abakpa-zone-lvc.firebasestorage.app",
-    messagingSenderId: "867176150585",
-    appId: "1:867176150585:web:df5b095e82552b2fdb7fe8"
+    apiKey: "AIzaSyBcguUdx1FGQnlzLNi_xOEDsKqjOT679y0",
+    authDomain: "lvc2026-abe5c.firebaseapp.com",
+    databaseURL: "https://lvc2026-abe5c-default-rtdb.firebaseio.com",
+    projectId: "lvc2026-abe5c",
+    storageBucket: "lvc2026-abe5c.firebasestorage.app",
+    messagingSenderId: "669019921521",
+    appId: "1:669019921521:web:a91919c14cfd9a174f4fd0",
+    measurementId: "G-ZX8ZDVH6JH"
 };
 
-// Initialize Firebase
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-    console.log('✅ Firebase initialized');
-}
-
-const db = firebase.database();
-const cloudDBRef = db.ref('registrations');
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const realtimeDB = getDatabase(app);
+const cloudDBRef = ref(realtimeDB, 'registrations');
 
 // ==================== LOCAL DATABASE ====================
 let database = JSON.parse(localStorage.getItem('su_camp_2026_db')) || { children: [], youth: [], pilgrims: [] };
-let systemConfig = JSON.parse(localStorage.getItem('su_camp_2026_config')) || { targetDate: "2026-08-01T08:00" };
+let systemConfig = JSON.parse(localStorage.getItem('su_camp_2026_config')) || { targetDate: "2026-08-01T08:00" }; 
 
 // Connection status
 let isOnline = true;
@@ -1283,47 +1282,47 @@ async function syncUserDataAndContinue() {
         }
         
         const localDB = JSON.parse(localData);
-        const snapshot = await cloudDBRef.once('value');
+        const snapshot = await get(cloudDBRef);
         const cloudData = snapshot.val() || {};
         
         let syncedCount = 0;
         
         // Sync children
-        for (let child of localDB.children || []) {
+        for (let childItem of localDB.children || []) {
             const existsInCloud = cloudData.children && 
-                Object.values(cloudData.children).some(c => c.code === child.code);
+                Object.values(cloudData.children).some(c => c.code === childItem.code);
             if (!existsInCloud) {
-                await cloudDBRef.child('children').push().set(child);
-                if (!database.children.some(c => c.code === child.code)) database.children.push(child);
+                await set(push(child(cloudDBRef, 'children')), childItem);
+                if (!database.children.some(c => c.code === childItem.code)) database.children.push(childItem);
                 syncedCount++;
             } else {
-                if (!database.children.some(c => c.code === child.code)) database.children.push(child);
+                if (!database.children.some(c => c.code === childItem.code)) database.children.push(childItem);
             }
         }
         
         // Sync youth
-        for (let youth of localDB.youth || []) {
+        for (let youthItem of localDB.youth || []) {
             const existsInCloud = cloudData.youth && 
-                Object.values(cloudData.youth).some(y => y.code === youth.code);
+                Object.values(cloudData.youth).some(y => y.code === youthItem.code);
             if (!existsInCloud) {
-                await cloudDBRef.child('youth').push().set(youth);
-                if (!database.youth.some(y => y.code === youth.code)) database.youth.push(youth);
+                await set(push(child(cloudDBRef, 'youth')), youthItem);
+                if (!database.youth.some(y => y.code === youthItem.code)) database.youth.push(youthItem);
                 syncedCount++;
             } else {
-                if (!database.youth.some(y => y.code === youth.code)) database.youth.push(youth);
+                if (!database.youth.some(y => y.code === youthItem.code)) database.youth.push(youthItem);
             }
         }
         
         // Sync pilgrims
-        for (let pilgrim of localDB.pilgrims || []) {
+        for (let pilgrimItem of localDB.pilgrims || []) {
             const existsInCloud = cloudData.pilgrims && 
-                Object.values(cloudData.pilgrims).some(p => p.code === pilgrim.code);
+                Object.values(cloudData.pilgrims).some(p => p.code === pilgrimItem.code);
             if (!existsInCloud) {
-                await cloudDBRef.child('pilgrims').push().set(pilgrim);
-                if (!database.pilgrims.some(p => p.code === pilgrim.code)) database.pilgrims.push(pilgrim);
+                await set(push(child(cloudDBRef, 'pilgrims')), pilgrimItem);
+                if (!database.pilgrims.some(p => p.code === pilgrimItem.code)) database.pilgrims.push(pilgrimItem);
                 syncedCount++;
             } else {
-                if (!database.pilgrims.some(p => p.code === pilgrim.code)) database.pilgrims.push(pilgrim);
+                if (!database.pilgrims.some(p => p.code === pilgrimItem.code)) database.pilgrims.push(pilgrimItem);
             }
         }
         
@@ -1394,8 +1393,8 @@ async function saveToCloud(record, category) {
     
     try {
         const recordId = `${category}_${record.code}_${Date.now()}`;
-        const recordRef = cloudDBRef.child(category).child(recordId);
-        await recordRef.set(record);
+        const recordRef = child(child(cloudDBRef, category), recordId);
+        await set(recordRef, record);
         console.log(`✅ Saved to cloud: ${category}/${record.code}`);
         updateSyncStatus('online', 'Saved to Cloud ✅');
         return { success: true };
@@ -1414,7 +1413,7 @@ async function loadCloudDataOnStart() {
     console.log('🔄 Loading cloud data...');
     
     try {
-        const snapshot = await cloudDBRef.once('value');
+        const snapshot = await get(cloudDBRef);
         const cloudData = snapshot.val();
         
         if (cloudData) {
@@ -1467,10 +1466,54 @@ async function loadCloudDataOnStart() {
             updateSyncStatus('online', 'Ready - Cloud empty');
         }
         cloudDataLoaded = true;
+        // Start realtime listeners after initial load
+        try { setupRealtimeListeners(); } catch (e) { console.warn('Realtime listeners failed to start', e); }
     } catch (error) {
         console.error('Cloud load error:', error);
         updateSyncStatus('offline', 'Cannot reach cloud');
     }
+}
+
+// Setup realtime listeners so admin panel and local DB update instantly
+function setupRealtimeListeners() {
+    ['children','youth','pilgrims'].forEach(cat => {
+        const catRef = child(cloudDBRef, cat);
+        // remove previous listeners to avoid duplicates
+        try { off(catRef); } catch (e) {}
+
+        onChildAdded(catRef, snapshot => {
+            const rec = snapshot.val();
+            if (!rec) return;
+            if (!database[cat].some(r => r.code === rec.code)) {
+                database[cat].push(rec);
+                localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                youthCountGlobal = database.youth.length;
+                updateSyncStatus('online', 'Realtime update received');
+                if (document.getElementById('adminPanel').style.display === 'block') renderDashboardData();
+            }
+        });
+
+        onChildChanged(catRef, snapshot => {
+            const rec = snapshot.val();
+            if (!rec) return;
+            const idx = database[cat].findIndex(r => r.code === rec.code);
+            if (idx > -1) {
+                database[cat][idx] = rec;
+                localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+                youthCountGlobal = database.youth.length;
+                if (document.getElementById('adminPanel').style.display === 'block') renderDashboardData();
+            }
+        });
+
+        onChildRemoved(catRef, snapshot => {
+            const rec = snapshot.val();
+            if (!rec) return;
+            database[cat] = database[cat].filter(r => r.code !== rec.code);
+            localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+            youthCountGlobal = database.youth.length;
+            if (document.getElementById('adminPanel').style.display === 'block') renderDashboardData();
+        });
+    });
 }
 
 // Recover all local data (for admin use)
@@ -1489,32 +1532,32 @@ async function recoverAllLocalData() {
     let recoveredCount = 0;
     
     if (localDB) {
-        const snapshot = await cloudDBRef.once('value');
+        const snapshot = await get(cloudDBRef);
         const cloudData = snapshot.val() || {};
         
-        for (let child of localDB.children || []) {
-            const exists = cloudData.children && Object.values(cloudData.children).some(c => c.code === child.code);
+        for (let childItem of localDB.children || []) {
+            const exists = cloudData.children && Object.values(cloudData.children).some(c => c.code === childItem.code);
             if (!exists) {
-                await cloudDBRef.child('children').push().set(child);
-                if (!database.children.some(c => c.code === child.code)) database.children.push(child);
+                await set(push(child(cloudDBRef, 'children')), childItem);
+                if (!database.children.some(c => c.code === childItem.code)) database.children.push(childItem);
                 recoveredCount++;
             }
         }
         
-        for (let youth of localDB.youth || []) {
-            const exists = cloudData.youth && Object.values(cloudData.youth).some(y => y.code === youth.code);
+        for (let youthItem of localDB.youth || []) {
+            const exists = cloudData.youth && Object.values(cloudData.youth).some(y => y.code === youthItem.code);
             if (!exists) {
-                await cloudDBRef.child('youth').push().set(youth);
-                if (!database.youth.some(y => y.code === youth.code)) database.youth.push(youth);
+                await set(push(child(cloudDBRef, 'youth')), youthItem);
+                if (!database.youth.some(y => y.code === youthItem.code)) database.youth.push(youthItem);
                 recoveredCount++;
             }
         }
         
-        for (let pilgrim of localDB.pilgrims || []) {
-            const exists = cloudData.pilgrims && Object.values(cloudData.pilgrims).some(p => p.code === pilgrim.code);
+        for (let pilgrimItem of localDB.pilgrims || []) {
+            const exists = cloudData.pilgrims && Object.values(cloudData.pilgrims).some(p => p.code === pilgrimItem.code);
             if (!exists) {
-                await cloudDBRef.child('pilgrims').push().set(pilgrim);
-                if (!database.pilgrims.some(p => p.code === pilgrim.code)) database.pilgrims.push(pilgrim);
+                await set(push(child(cloudDBRef, 'pilgrims')), pilgrimItem);
+                if (!database.pilgrims.some(p => p.code === pilgrimItem.code)) database.pilgrims.push(pilgrimItem);
                 recoveredCount++;
             }
         }
@@ -1531,20 +1574,23 @@ async function recoverAllLocalData() {
 }
 
 // Force sync from cloud
-async function syncFromCloud() {
+// Accept optional event so callers can pass `event` from onclick handlers
+async function syncFromCloud(event) {
     if (!isOnline) {
         alert('⚠️ You are offline. Cannot sync from cloud.');
         return;
     }
     
-    const syncBtn = event.target;
-    syncBtn.disabled = true;
-    syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
+    const syncBtn = event ? event.target : document.querySelector('button[onclick="syncFromCloud()"]');
+    if (syncBtn) {
+        syncBtn.disabled = true;
+        syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
+    }
     
     updateSyncStatus('syncing', 'Downloading from Cloud...');
     
     try {
-        const snapshot = await cloudDBRef.once('value');
+        const snapshot = await get(cloudDBRef);
         const cloudData = snapshot.val();
         
         if (cloudData) {
@@ -1599,13 +1645,15 @@ async function syncFromCloud() {
         updateSyncStatus('offline', 'Download Failed');
         alert('❌ Failed to sync from cloud. Check Firebase rules.');
     } finally {
-        syncBtn.disabled = false;
-        syncBtn.textContent = '☁️ Sync from Cloud';
+        if (syncBtn) {
+            syncBtn.disabled = false;
+            syncBtn.textContent = '☁️ Sync from Cloud';
+        }
     }
 }
 
 // Monitor connection status
-db.ref('.info/connected').on('value', async (snap) => {
+onValue(ref(realtimeDB, '.info/connected'), async (snap) => {
     if (snap.val() === true) {
         console.log('✅ Firebase connected');
         isOnline = true;
