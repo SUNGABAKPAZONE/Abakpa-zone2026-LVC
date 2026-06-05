@@ -968,11 +968,14 @@
     <div class="admin-grid" id="adminGridStats"></div>
 
     <!-- Admin Tabs -->
-    <div class="nested-dashboard-tabs">
-        <button class="btn-admin-tab active" onclick="switchAdminTab('t-summary', event)">📊 Summary / Breakdowns</button>
-        <button class="btn-admin-tab" onclick="switchAdminTab('t-youth', event)">👨🎓 Youth Table</button>
-        <button class="btn-admin-tab" onclick="switchAdminTab('t-child', event)">🧒 Children Table</button>
-        <button class="btn-admin-tab" onclick="switchAdminTab('t-pilgrim', event)">🙏 Pilgrim Table</button>
+    <div class="nested-dashboard-tabs" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+        <div>
+            <button class="btn-admin-tab active" onclick="switchAdminTab('t-summary', event)">📊 Summary / Breakdowns</button>
+            <button class="btn-admin-tab" onclick="switchAdminTab('t-youth', event)">👨🎓 Youth Table</button>
+            <button class="btn-admin-tab" onclick="switchAdminTab('t-child', event)">🧒 Children Table</button>
+            <button class="btn-admin-tab" onclick="switchAdminTab('t-pilgrim', event)">🙏 Pilgrim Table</button>
+        </div>
+        <button style="background:#27ae60; padding:8px 18px; border-radius:6px; font-weight:bold;" onclick="openAdminAddModal()">➕ Add Participant</button>
     </div>
 
     <!-- TAB: Summary -->
@@ -1146,6 +1149,24 @@
             </div>
             <button type="submit" class="btn-verify" style="width: 100%; border-radius: 6px;">Search Registration</button>
         </form>
+    </div>
+</div>
+
+<!-- ADMIN ADD PARTICIPANT MODAL -->
+<div class="modal" id="adminAddModal">
+    <div class="modal-content" style="max-width:650px; border-top-color:#27ae60;">
+        <span class="close" onclick="closeModal('adminAddModal')">&times;</span>
+        <h2>➕ Admin: Add Participant</h2>
+        <div class="form-group" style="margin-bottom:15px;">
+            <label><strong>Registration Type *</strong></label>
+            <select id="adminAddType" onchange="renderAdminAddForm()" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:5px; font-size:16px;">
+                <option value="">-- Select Type --</option>
+                <option value="youth">👨🎓 Youth</option>
+                <option value="children">🧒 Child</option>
+                <option value="pilgrims">🙏 Pilgrim</option>
+            </select>
+        </div>
+        <div id="adminAddFormContainer"></div>
     </div>
 </div>
 
@@ -1994,6 +2015,9 @@ function logoutAdmin() {
     try { if (typeof switchAdminTab === 'function') window.switchAdminTab = switchAdminTab; } catch(e){}
     try { if (typeof runGlobalMasterSearch === 'function') window.runGlobalMasterSearch = runGlobalMasterSearch; } catch(e){}
     try { if (typeof deleteParticipant === 'function') window.deleteParticipant = deleteParticipant; } catch(e){}
+    try { if (typeof openAdminAddModal === 'function') window.openAdminAddModal = openAdminAddModal; } catch(e){}
+    try { if (typeof renderAdminAddForm === 'function') window.renderAdminAddForm = renderAdminAddForm; } catch(e){}
+    try { if (typeof submitAdminAdd === 'function') window.submitAdminAdd = submitAdminAdd; } catch(e){}
 })();
 
 function switchAdminTab(tabId, event) {
@@ -2108,6 +2132,165 @@ async function deleteParticipant(code, tableId) {
     
     // Re-render dashboard tables
     renderDashboardData();
+}
+
+// ==================== ADMIN ADD PARTICIPANT ====================
+function openAdminAddModal() {
+    document.getElementById('adminAddType').value = '';
+    document.getElementById('adminAddFormContainer').innerHTML = '';
+    openModal('adminAddModal');
+}
+
+function renderAdminAddForm() {
+    const type = document.getElementById('adminAddType').value;
+    const container = document.getElementById('adminAddFormContainer');
+    if (!type) { container.innerHTML = ''; return; }
+
+    let fields = '';
+    if (type === 'youth') {
+        fields = `
+            <div class="form-group"><label>Full Name *</label><input type="text" id="aa_name" required placeholder="Full name"></div>
+            <div class="form-group"><label>Age * (13-35)</label><input type="number" id="aa_age" required min="13" max="35"></div>
+            <div class="form-group"><label>Gender *</label><select id="aa_gender" required><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+            <div class="form-group"><label>Fellowship Group *</label><input type="text" id="aa_fellowship" required placeholder="Fellowship name"></div>
+            <div class="form-group"><label>Church *</label><input type="text" id="aa_church" required placeholder="Church name"></div>
+            <div class="form-group"><label>School</label><input type="text" id="aa_school" placeholder="School name"></div>
+            <div class="form-group"><label>Class / Level</label><input type="text" id="aa_class" placeholder="Class or level"></div>
+            <div class="form-group"><label>Youth Category *</label><select id="aa_category" required><option value="">Select</option><option>SUCF</option><option>School Leaver</option><option>Graduate</option><option>Student</option></select></div>
+            <div class="form-group"><label>Phone Number *</label><input type="tel" id="aa_phone" required placeholder="Phone number"></div>
+            <div class="form-group"><label>Parent Contact *</label><input type="tel" id="aa_parent" required placeholder="Parent phone"></div>
+            <div class="form-group"><label>SU Member?</label><select id="aa_su_member"><option>Yes</option><option>No</option></select></div>
+            <div class="form-group"><label>First Time in Camp?</label><select id="aa_first_time"><option>Yes</option><option>No</option></select></div>`;
+    } else if (type === 'children') {
+        fields = `
+            <div class="form-group"><label>Full Name *</label><input type="text" id="aa_name" required placeholder="Full name"></div>
+            <div class="form-group"><label>Age * (0-12)</label><input type="number" id="aa_age" required min="0" max="12"></div>
+            <div class="form-group"><label>Gender *</label><select id="aa_gender" required><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+            <div class="form-group"><label>Fellowship Group *</label><input type="text" id="aa_fellowship" required placeholder="Fellowship name"></div>
+            <div class="form-group"><label>Church *</label><input type="text" id="aa_church" required placeholder="Church name"></div>
+            <div class="form-group"><label>School</label><input type="text" id="aa_school" placeholder="School name"></div>
+            <div class="form-group"><label>Class</label><input type="text" id="aa_class" placeholder="Current class"></div>
+            <div class="form-group"><label>Phone Number *</label><input type="tel" id="aa_phone" required placeholder="Phone number"></div>
+            <div class="form-group"><label>Parent Contact *</label><input type="tel" id="aa_parent" required placeholder="Parent phone"></div>
+            <div class="form-group"><label>SU Member?</label><select id="aa_su_member"><option>Yes</option><option>No</option></select></div>
+            <div class="form-group"><label>First Time in Camp?</label><select id="aa_first_time"><option>Yes</option><option>No</option></select></div>`;
+    } else if (type === 'pilgrims') {
+        fields = `
+            <div class="form-group"><label>Full Name *</label><input type="text" id="aa_name" required placeholder="Full name"></div>
+            <div class="form-group"><label>Age *</label><input type="number" id="aa_age" required min="18"></div>
+            <div class="form-group"><label>Gender *</label><select id="aa_gender" required><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+            <div class="form-group"><label>Fellowship Group *</label><input type="text" id="aa_fellowship" required placeholder="Fellowship name"></div>
+            <div class="form-group"><label>Church *</label><input type="text" id="aa_church" required placeholder="Church name"></div>
+            <div class="form-group"><label>Phone Number *</label><input type="tel" id="aa_phone" required placeholder="Phone number"></div>
+            <div class="form-group"><label>Office Held *</label><input type="text" id="aa_office" required placeholder="Office held"></div>
+            <div class="form-group"><label>SU Member?</label><select id="aa_su_member"><option>Yes</option><option>No</option></select></div>
+            <div class="form-group"><label>First Time in Camp?</label><select id="aa_first_time"><option>Yes</option><option>No</option></select></div>`;
+    }
+
+    container.innerHTML = `
+        <form id="adminAddForm" onsubmit="submitAdminAdd(event)">
+            ${fields}
+            <p class="required-note">* Required fields. Duplicate check: Name + Age + Phone.</p>
+            <button type="submit" style="background:#27ae60; width:100%; margin-top:10px;">✅ Add & Save Participant</button>
+        </form>`;
+}
+
+async function submitAdminAdd(event) {
+    event.preventDefault();
+    const type = document.getElementById('adminAddType').value;
+    if (!type) return;
+
+    const name  = document.getElementById('aa_name').value.trim();
+    const age   = document.getElementById('aa_age').value;
+    const phone = document.getElementById('aa_phone').value.trim();
+
+    // Duplicate check
+    const dupResult = checkDuplicate(name, parseInt(age), phone);
+    if (dupResult.isDuplicate) {
+        alert(`⚠️ Duplicate detected!\n${dupResult.existingRecord.name} (${dupResult.existingRecord.code}) is already registered.`);
+        return;
+    }
+
+    const btn = event.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Saving...';
+
+    const nextIndex = database[type].length + 1;
+    let record = {};
+    let codePrefix = '';
+
+    if (type === 'youth') {
+        const assignedTeam = campTeamsAndBibleStudies[youthCountGlobal % campTeamsAndBibleStudies.length];
+        record = {
+            name, age: parseInt(age),
+            gender: document.getElementById('aa_gender').value,
+            fellowship: document.getElementById('aa_fellowship').value,
+            church: document.getElementById('aa_church').value,
+            school: document.getElementById('aa_school').value || 'N/A',
+            className: document.getElementById('aa_class').value || 'N/A',
+            category: document.getElementById('aa_category').value,
+            phone, parent: document.getElementById('aa_parent').value,
+            suMember: document.getElementById('aa_su_member').value,
+            firstTime: document.getElementById('aa_first_time').value,
+            team: assignedTeam, bibleStudyCenter: assignedTeam, hostel: ''
+        };
+        record.hostel = record.gender === 'Female'
+            ? femaleHostels[youthCountGlobal % femaleHostels.length]
+            : maleHostels[youthCountGlobal % maleHostels.length];
+        codePrefix = 'SU2026LVCY';
+        youthCountGlobal++;
+    } else if (type === 'children') {
+        record = {
+            name, age: parseInt(age),
+            gender: document.getElementById('aa_gender').value,
+            fellowship: document.getElementById('aa_fellowship').value,
+            church: document.getElementById('aa_church').value,
+            school: document.getElementById('aa_school').value || 'N/A',
+            className: document.getElementById('aa_class').value || 'N/A',
+            phone, parent: document.getElementById('aa_parent').value,
+            suMember: document.getElementById('aa_su_member').value,
+            firstTime: document.getElementById('aa_first_time').value,
+            hostel: 'N/A', team: 'N/A', bibleStudyCenter: 'Children Unit'
+        };
+        codePrefix = 'SU2026LVCC';
+    } else if (type === 'pilgrims') {
+        record = {
+            name, age: parseInt(age),
+            gender: document.getElementById('aa_gender').value,
+            fellowship: document.getElementById('aa_fellowship').value,
+            church: document.getElementById('aa_church').value,
+            phone, office: document.getElementById('aa_office').value,
+            suMember: document.getElementById('aa_su_member').value,
+            firstTime: document.getElementById('aa_first_time').value,
+            hostel: 'Pilgrim Lodge', team: 'Officers Team', bibleStudyCenter: 'Officers Bible Study'
+        };
+        codePrefix = 'SU2026LVCP';
+    }
+
+    record.code = codePrefix + String(nextIndex).padStart(4, '0');
+    record.timestamp = Date.now();
+    record.registeredAt = new Date().toISOString();
+    record.addedByAdmin = true;
+
+    // Save locally
+    database[type].push(record);
+    localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+
+    // Save to cloud
+    if (isOnline) {
+        try {
+            const recordId = `${type}_${record.code}_${Date.now()}`;
+            const recordRef = child(child(cloudDBRef, type), recordId);
+            await set(recordRef, record);
+            updateSyncStatus('online', 'Admin Added & Synced ✅');
+        } catch(e) {
+            console.warn('Cloud save failed:', e);
+        }
+    }
+
+    closeModal('adminAddModal');
+    renderDashboardData();
+    alert(`✅ ${name} has been registered successfully!\n\nCode: ${record.code}`);
 }
 
 function buildCountReport(tableId, dataset, keyField) {
