@@ -1971,28 +1971,28 @@ function logoutAdmin() {
     document.getElementById('mainFrontPage').style.display = 'block';
 }
 
-// Expose commonly-used handlers to global scope so inline `onclick` works
-// (module scripts do not export functions to `window` by default)
-try {
-    window.adminLogin = adminLogin;
-    window.logoutAdmin = logoutAdmin;
-    window.checkAndOpenModal = checkAndOpenModal;
-    window.openModal = openModal;
-    window.closeModal = closeModal;
-    window.syncUserDataAndContinue = syncUserDataAndContinue;
-    window.syncFromCloud = syncFromCloud;
-    window.recoverAllLocalData = recoverAllLocalData;
-    window.saveCampDate = saveCampDate;
-    window.downloadAllAllocationsPDF = downloadAllAllocationsPDF;
-    window.exportTableToExcel = exportTableToExcel;
-    window.exportTableToPDF = exportTableToPDF;
-    window.exportCSVData = exportCSVData;
-    window.generateBulkIDCardsPDF = generateBulkIDCardsPDF;
-    window.closeDuplicateModal = closeDuplicateModal;
-    window.closeDuplicateAndVerify = closeDuplicateAndVerify;
-    window.closeSuccess = closeSuccess;
-    window.switchAdminTab = switchAdminTab;
-} catch (e) { console.warn('Global export failed:', e); }
+// Expose commonly-used handlers to global scope so inline onclick works
+// Use safe assignments so one missing function doesn't block others
+(function(){
+    try { if (typeof adminLogin === 'function') window.adminLogin = adminLogin; } catch(e){}
+    try { if (typeof logoutAdmin === 'function') window.logoutAdmin = logoutAdmin; } catch(e){}
+    try { if (typeof checkAndOpenModal === 'function') window.checkAndOpenModal = checkAndOpenModal; } catch(e){}
+    try { if (typeof openModal === 'function') window.openModal = openModal; } catch(e){}
+    try { if (typeof closeModal === 'function') window.closeModal = closeModal; } catch(e){}
+    try { if (typeof syncUserDataAndContinue === 'function') window.syncUserDataAndContinue = syncUserDataAndContinue; } catch(e){}
+    try { if (typeof syncFromCloud === 'function') window.syncFromCloud = syncFromCloud; } catch(e){}
+    try { if (typeof recoverAllLocalData === 'function') window.recoverAllLocalData = recoverAllLocalData; } catch(e){}
+    try { if (typeof saveCampDate === 'function') window.saveCampDate = saveCampDate; } catch(e){}
+    try { if (typeof downloadAllAllocationsPDF === 'function') window.downloadAllAllocationsPDF = downloadAllAllocationsPDF; } catch(e){}
+    try { if (typeof exportTableToExcel === 'function') window.exportTableToExcel = exportTableToExcel; } catch(e){}
+    try { if (typeof exportTableToPDF === 'function') window.exportTableToPDF = exportTableToPDF; } catch(e){}
+    try { if (typeof exportCSVData === 'function') window.exportCSVData = exportCSVData; } catch(e){}
+    try { if (typeof generateBulkIDCardsPDF === 'function') window.generateBulkIDCardsPDF = generateBulkIDCardsPDF; } catch(e){}
+    try { if (typeof closeDuplicateModal === 'function') window.closeDuplicateModal = closeDuplicateModal; } catch(e){}
+    try { if (typeof closeDuplicateAndVerify === 'function') window.closeDuplicateAndVerify = closeDuplicateAndVerify; } catch(e){}
+    try { if (typeof closeSuccess === 'function') window.closeSuccess = closeSuccess; } catch(e){}
+    try { if (typeof switchAdminTab === 'function') window.switchAdminTab = switchAdminTab; } catch(e){}
+})();
 
 function switchAdminTab(tabId, event) {
     document.querySelectorAll('.data-section').forEach(el => el.classList.remove('active'));
