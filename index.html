@@ -1971,6 +1971,29 @@ function logoutAdmin() {
     document.getElementById('mainFrontPage').style.display = 'block';
 }
 
+// Expose commonly-used handlers to global scope so inline `onclick` works
+// (module scripts do not export functions to `window` by default)
+try {
+    window.adminLogin = adminLogin;
+    window.logoutAdmin = logoutAdmin;
+    window.checkAndOpenModal = checkAndOpenModal;
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+    window.syncUserDataAndContinue = syncUserDataAndContinue;
+    window.syncFromCloud = syncFromCloud;
+    window.recoverAllLocalData = recoverAllLocalData;
+    window.saveCampDate = saveCampDate;
+    window.downloadAllAllocationsPDF = downloadAllAllocationsPDF;
+    window.exportTableToExcel = exportTableToExcel;
+    window.exportTableToPDF = exportTableToPDF;
+    window.exportCSVData = exportCSVData;
+    window.generateBulkIDCardsPDF = generateBulkIDCardsPDF;
+    window.closeDuplicateModal = closeDuplicateModal;
+    window.closeDuplicateAndVerify = closeDuplicateAndVerify;
+    window.closeSuccess = closeSuccess;
+    window.switchAdminTab = switchAdminTab;
+} catch (e) { console.warn('Global export failed:', e); }
+
 function switchAdminTab(tabId, event) {
     document.querySelectorAll('.data-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.btn-admin-tab').forEach(el => el.classList.remove('active'));
