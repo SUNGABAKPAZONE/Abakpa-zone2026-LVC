@@ -838,6 +838,15 @@
         🎉 Welcome to Scripture Union Abakpa Zone 2026 Children, Student and Youth Long Vacation Camp 🎉
     </div>
 
+    <!-- Auto-Sync Banner: shown automatically if user has unsynced local data -->
+    <div id="autoSyncBanner" style="display:none; max-width:1000px; margin:15px auto; background:#fff3cd; border:2px solid #f39c12; border-radius:10px; padding:15px 20px; display:none; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div>
+            <strong style="color:#856404;">📤 You have a saved registration on this device!</strong>
+            <p style="margin:4px 0 0; color:#856404; font-size:0.9rem;">Click the button to send it to the central database so the admin can see it.</p>
+        </div>
+        <button id="autoSyncBtn" style="background:#f39c12; color:white; padding:10px 20px; border-radius:6px; font-weight:bold; white-space:nowrap;" onclick="autoSyncLocalDataSilently(true)">📤 Sync My Registration Now</button>
+    </div>
+
     <!-- Registration Cards -->
     <div class="container">
         <div class="cards">
@@ -2018,6 +2027,7 @@ function logoutAdmin() {
     try { if (typeof openAdminAddModal === 'function') window.openAdminAddModal = openAdminAddModal; } catch(e){}
     try { if (typeof renderAdminAddForm === 'function') window.renderAdminAddForm = renderAdminAddForm; } catch(e){}
     try { if (typeof submitAdminAdd === 'function') window.submitAdminAdd = submitAdminAdd; } catch(e){}
+    try { if (typeof autoSyncLocalDataSilently === 'function') window.autoSyncLocalDataSilently = autoSyncLocalDataSilently; } catch(e){}
 })();
 
 function switchAdminTab(tabId, event) {
@@ -2622,7 +2632,116 @@ setTimeout(async () => {
     if (isOnline) {
         try { await loadCloudDataOnStart(); } catch(e) { console.warn('loadCloudDataOnStart error:', e); }
     }
+    // After cloud data is loaded, check if this user has unsynced local data and auto-sync it silently
+    try { showSyncBannerIfNeeded(); } catch(e) {}
+    setTimeout(() => {
+        try { autoSyncLocalDataSilently(false); } catch(e) {}
+    }, 2000);
 }, 1000);
+
+// ==================== AUTO-SYNC LOCAL DATA ====================
+function showSyncBannerIfNeeded() {
+    const localDB = JSON.parse(localStorage.getItem('su_camp_2026_db'));
+    if (!localDB) return;
+    const totalLocal = (localDB.children?.length || 0) + (localDB.youth?.length || 0) + (localDB.pilgrims?.length || 0);
+    if (totalLocal === 0) return;
+
+    // Check if any local record is not yet in the live database
+    let unsyncedCount = 0;
+    for (let c of localDB.children || []) {
+        if (!database.children.some(r => r.code === c.code)) unsyncedCount++;
+    }
+    for (let y of localDB.youth || []) {
+        if (!database.youth.some(r => r.code === y.code)) unsyncedCount++;
+    }
+    for (let p of localDB.pilgrims || []) {
+        if (!database.pilgrims.some(r => r.code === p.code)) unsyncedCount++;
+    }
+
+    if (unsyncedCount > 0) {
+        const banner = document.getElementById('autoSyncBanner');
+        if (banner) banner.style.display = 'flex';
+    }
+}
+
+async function autoSyncLocalDataSilently(showAlert = false) {
+    if (!isOnline) {
+        if (showAlert) alert('⚠️ You are offline. Please connect to the internet and try again.');
+        return;
+    }
+    const localDB = JSON.parse(localStorage.getItem('su_camp_2026_db'));
+    if (!localDB) return;
+
+    const btn = document.getElementById('autoSyncBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Syncing...'; }
+
+    try {
+        const snapshot = await get(cloudDBRef);
+        const cloudData = snapshot.val() || {};
+        let syncedCount = 0;
+
+        for (let childItem of localDB.children || []) {
+            const existsInCloud = cloudData.children && Object.values(cloudData.children).some(c => c.code === childItem.code);
+            if (!existsInCloud) {
+                await set(push(child(cloudDBRef, 'children')), childItem);
+                if (!database.children.some(c => c.code === childItem.code)) database.children.push(childItem);
+                syncedCount++;
+            } else {
+                if (!database.children.some(c => c.code === childItem.code)) database.children.push(childItem);
+            }
+        }
+
+        for (let youthItem of localDB.youth || []) {
+            const existsInCloud = cloudData.youth && Object.values(cloudData.youth).some(y => y.code === youthItem.code);
+            if (!existsInCloud) {
+                await set(push(child(cloudDBRef, 'youth')), youthItem);
+                if (!database.youth.some(y => y.code === youthItem.code)) database.youth.push(youthItem);
+                syncedCount++;
+            } else {
+                if (!database.youth.some(y => y.code === youthItem.code)) database.youth.push(youthItem);
+            }
+        }
+
+        for (let pilgrimItem of localDB.pilgrims || []) {
+            const existsInCloud = cloudData.pilgrims && Object.values(cloudData.pilgrims).some(p => p.code === pilgrimItem.code);
+            if (!existsInCloud) {
+                await set(push(child(cloudDBRef, 'pilgrims')), pilgrimItem);
+                if (!database.pilgrims.some(p => p.code === pilgrimItem.code)) database.pilgrims.push(pilgrimItem);
+                syncedCount++;
+            } else {
+                if (!database.pilgrims.some(p => p.code === pilgrimItem.code)) database.pilgrims.push(pilgrimItem);
+            }
+        }
+
+        youthCountGlobal = database.youth.length;
+        localStorage.setItem('su_camp_2026_db', JSON.stringify(database));
+
+        if (syncedCount > 0) {
+            console.log(`✅ Auto-synced ${syncedCount} local record(s) to Firebase.`);
+            updateSyncStatus('online', `Auto-synced ${syncedCount} record(s) ✅`);
+            // Hide banner on success
+            const banner = document.getElementById('autoSyncBanner');
+            if (banner) banner.style.display = 'none';
+            if (showAlert) alert(`✅ ${syncedCount} registration(s) successfully synced to the central database!`);
+        } else {
+            // All data already in cloud
+            const banner = document.getElementById('autoSyncBanner');
+            if (banner) banner.style.display = 'none';
+            if (showAlert) alert('✅ Your registration is already in the central database!');
+            updateSyncStatus('online', 'All data in sync ✅');
+        }
+
+        if (document.getElementById('adminPanel').style.display === 'block') {
+            renderDashboardData();
+        }
+    } catch (error) {
+        console.error('Auto-sync error:', error);
+        if (btn) { btn.disabled = false; btn.innerHTML = '📤 Sync My Registration Now'; }
+        if (showAlert) alert('❌ Sync failed. Check your internet connection and try again.');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '📤 Sync My Registration Now'; }
+    }
+}
 </script>
 
 </body>
