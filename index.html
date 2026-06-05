@@ -2117,31 +2117,33 @@ function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
     if(dataList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:#999;">No members registered yet.</td></tr>`;
     } else {
-        dataList.forEach(member => {
-            let row = '<tr>';
-            columns.forEach(col => {
-                row += `<td>${col === 'code' ? '<b>' + (member[col] || 'N/A') + '</b>' : (member[col] || 'N/A')}</td>`;
-            });
-            row += '</tr>';
-            tbody.innerHTML += row;
-        });
-    }
-    table.appendChild(tbody);
-    responsiveDiv.appendChild(table);
-    box.appendChild(responsiveDiv);
-    return box;
-}
+        chunk.forEach(member => {
+            // defensive guards for missing fields
+            const safeName = (member && member.name) ? String(member.name).toUpperCase() : 'UNKNOWN';
+            let currentHostel = (member && member.hostel) ? member.hostel : 'N/A';
+            if (currentHostel !== 'N/A' && currentHostel !== 'Pilgrim Lodge') currentHostel += ' HOSTEL';
 
-// ==================== SEARCH ====================
-function runGlobalMasterSearch() {
-    const query = document.getElementById('adminGlobalMasterSearch').value.toLowerCase().trim();
-    const badge = document.getElementById('globalSearchCounterBadge');
-    const allRows = document.querySelectorAll('#adminPanel table tbody tr');
-    let matches = 0;
-    
-    allRows.forEach(row => {
-        if (row.cells.length <= 1 && row.innerText.includes("No")) return;
-        const cellText = row.innerText.toLowerCase();
+            idCardsHtml += `
+                <div class="id-card-unit">
+                    <div class="id-card-header">
+                        <div class="id-mini-logo">SU</div>
+                        <div class="id-header-text">
+                            <h6>SCRIPTURE UNION NIGERIA</h6>
+                            <p>ABAKPA ZONE NGWO AREA</p>`
+        
+        idCardsHtml += `
+}
+                    <div class="id-card-tag">2026 YOUTH & CHILDREN CAMP</div>
+                    <div class="id-card-body">
+                        <div class="id-field"><span class="lbl">NAME:</span> <span class="val">${safeName}</span></div>
+                        <div class="id-field"><span class="lbl">AGE:</span> <span class="val">${(member && (member.age || member.age === 0)) ? member.age : 'N/A'} years</span></div>
+                        <div class="id-field"><span class="lbl">HOSTEL:</span> <span class="val">${currentHostel}</span></div>
+                        <div class="id-field"><span class="lbl">TEAM:</span> <span class="val">${(member && member.team) ? member.team : 'N/A'}</span></div>
+                        <div class="id-field"><span class="lbl">BIBLE STUDY:</span> <span class="val">${(member && member.bibleStudyCenter) ? member.bibleStudyCenter : 'N/A'}</span></div>
+                        <div class="id-footer-code">${(member && member.code) ? member.code : 'N/A'}</div>
+                    </div>
+                </div>
+            `;
         if (query === "") {
             row.style.display = "";
         } else if (cellText.includes(query)) {
@@ -2235,22 +2237,30 @@ function exportCSVData() {
 
 // ==================== BULK ID CARDS ====================
 function generateBulkIDCardsPDF() {
-    let masterList = [...database.youth, ...database.children, ...database.pilgrims];
+    const masterList = Array.isArray(database.youth) || Array.isArray(database.children) || Array.isArray(database.pilgrims)
+        ? [...(database.youth || []), ...(database.children || []), ...(database.pilgrims || [])]
+        : [];
     if (masterList.length === 0) {
-        alert("The dataset registry is empty. Please register candidates first.");
+        alert('The dataset registry is empty. Please register candidates first.');
         return;
     }
-    let idCardsHtml = "";
-    let cardsPerPage = 12;
-    
+
+    const cardsPerPage = 12;
+    let idCardsHtml = '';
+
     for (let i = 0; i < masterList.length; i += cardsPerPage) {
-        let chunk = masterList.slice(i, i + cardsPerPage);
-        idCardsHtml += `<div class="a4-page-grid">`;
-        
+        const chunk = masterList.slice(i, i + cardsPerPage);
+        idCardsHtml += '<div class="a4-page-grid">';
+
         chunk.forEach(member => {
-            let currentHostel = member.hostel || 'N/A';
-            if(currentHostel !== 'N/A' && currentHostel !== 'Pilgrim Lodge') currentHostel += ' HOSTEL';
-            
+            const safeName = member && member.name ? String(member.name).toUpperCase() : 'UNKNOWN';
+            const safeAge = (member && (member.age || member.age === 0)) ? member.age : 'N/A';
+            let currentHostel = member && member.hostel ? member.hostel : 'N/A';
+            if (currentHostel !== 'N/A' && currentHostel !== 'Pilgrim Lodge') currentHostel += ' HOSTEL';
+            const safeTeam = member && member.team ? member.team : 'N/A';
+            const safeBible = member && member.bibleStudyCenter ? member.bibleStudyCenter : 'N/A';
+            const safeCode = member && member.code ? member.code : 'N/A';
+
             idCardsHtml += `
                 <div class="id-card-unit">
                     <div class="id-card-header">
@@ -2262,21 +2272,27 @@ function generateBulkIDCardsPDF() {
                     </div>
                     <div class="id-card-tag">2026 YOUTH & CHILDREN CAMP</div>
                     <div class="id-card-body">
-                        <div class="id-field"><span class="lbl">NAME:</span> <span class="val">${member.name.toUpperCase()}</span></div>
-                        <div class="id-field"><span class="lbl">AGE:</span> <span class="val">${member.age || 'N/A'} years</span></div>
+                        <div class="id-field"><span class="lbl">NAME:</span> <span class="val">${safeName}</span></div>
+                        <div class="id-field"><span class="lbl">AGE:</span> <span class="val">${safeAge} years</span></div>
                         <div class="id-field"><span class="lbl">HOSTEL:</span> <span class="val">${currentHostel}</span></div>
-                        <div class="id-field"><span class="lbl">TEAM:</span> <span class="val">${member.team || 'N/A'}</span></div>
-                        <div class="id-field"><span class="lbl">BIBLE STUDY:</span> <span class="val">${member.bibleStudyCenter || 'N/A'}</span></div>
-                        <div class="id-footer-code">${member.code}</div>
+                        <div class="id-field"><span class="lbl">TEAM:</span> <span class="val">${safeTeam}</span></div>
+                        <div class="id-field"><span class="lbl">BIBLE STUDY:</span> <span class="val">${safeBible}</span></div>
+                        <div class="id-footer-code">${safeCode}</div>
                     </div>
                 </div>
             `;
         });
-        idCardsHtml += `</div>`;
+
+        idCardsHtml += '</div>';
     }
-    
-    let printWindow = window.open('', '', 'height=850,width=1200');
-    printWindow.document.write(`
+
+    const printWindow = window.open('', '', 'height=850,width=1200');
+    if (!printWindow) {
+        alert('Popup blocked. Please allow popups for this site to generate printable ID cards.');
+        return;
+    }
+
+    const html = `
         <html>
         <head>
             <title>Camp Printable ID Cards (12 Per Page)</title>
@@ -2294,46 +2310,34 @@ function generateBulkIDCardsPDF() {
                     display: flex; flex-direction: column; overflow: hidden;
                     box-shadow: 0 1px 4px rgba(0,0,0,0.15); position: relative; max-height: 66mm;
                 }
-                .id-card-header {
-                    background: #d4edda; display: flex; align-items: center; padding: 5px;
-                    border-bottom: 2px solid #28a745;
-                }
-                .id-mini-logo {
-                    width: 26px; height: 26px; background: #28a745; color: #fff;
-                    font-weight: bold; border-radius: 50%; display: flex;
-                    align-items: center; justify-content: center; font-size: 10px; margin-right: 6px;
-                }
+                .id-card-header { background: #d4edda; display: flex; align-items: center; padding: 5px; border-bottom: 2px solid #28a745; }
+                .id-mini-logo { width: 26px; height: 26px; background: #28a745; color: #fff; font-weight: bold; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; margin-right: 6px; }
                 .id-header-text h6 { font-size: 10px; color: #155724; font-weight: 800; }
                 .id-header-text p { font-size: 7px; color: #444; font-weight: bold; }
-                .id-card-tag {
-                    background: #155724; color: #fff; font-size: 8px; text-align: center;
-                    padding: 3px 0; letter-spacing: 0.5px; font-weight: bold;
-                }
+                .id-card-tag { background: #155724; color: #fff; font-size: 8px; text-align: center; padding: 3px 0; letter-spacing: 0.5px; font-weight: bold; }
                 .id-card-body { padding: 6px 8px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
                 .id-field { font-size: 9.5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333; }
                 .id-field .lbl { font-weight: 700; color: #555; display: inline-block; width: 75px; font-size: 8px; }
                 .id-field .val { color: #111; font-weight: bold; }
-                .id-footer-code {
-                    margin-top: 4px; border-top: 1px dotted #ccc; padding-top: 3px;
-                    text-align: center; font-size: 11px; font-weight: 800;
-                    color: #b23b3b; letter-spacing: 1px;
-                }
-                @media print {
-                    body { background: none; }
-                    .a4-page-grid { margin: 0 auto; border: none; box-shadow: none; }
-                    @page { size: A4 portrait; margin: 0; }
-                }
+                .id-footer-code { margin-top: 4px; border-top: 1px dotted #ccc; padding-top: 3px; text-align: center; font-size: 11px; font-weight: 800; color: #b23b3b; letter-spacing: 1px; }
+                @media print { body { background: none; } .a4-page-grid { margin: 0 auto; border: none; box-shadow: none; } @page { size: A4 portrait; margin: 0; } }
             </style>
         </head>
         <body>
             <div id="wrapper">${idCardsHtml}</div>
-            <script>
-                window.onload = function() { window.print(); window.close(); };
-            <\/script>
+            <script>window.onload = function() { window.print(); window.close(); };<\/script>
         </body>
         </html>
-    `);
-    printWindow.document.close();
+    `;
+
+    try {
+        printWindow.document.write(html);
+        printWindow.document.close();
+    } catch (err) {
+        alert('Failed to generate printable ID cards: ' + (err && err.message ? err.message : err));
+        try { printWindow.close(); } catch (_) {}
+        return;
+    }
 }
 
 // ==================== EVENT LISTENERS ====================
