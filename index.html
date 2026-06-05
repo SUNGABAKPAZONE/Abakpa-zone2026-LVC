@@ -1018,7 +1018,7 @@
                     <tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Fellowship</th><th>Church</th><th>School</th><th>Class</th><th>Category</th><th>Phone</th><th>Parent</th><th>SU?</th><th>1st Time?</th><th>Hostel</th><th>Team</th><th>Bible Study</th></tr>
                 </thead>
                 <tbody></tbody>
-            追赶
+            </table>
         </div>
     </div>
 
@@ -1992,6 +1992,7 @@ function logoutAdmin() {
     try { if (typeof closeDuplicateAndVerify === 'function') window.closeDuplicateAndVerify = closeDuplicateAndVerify; } catch(e){}
     try { if (typeof closeSuccess === 'function') window.closeSuccess = closeSuccess; } catch(e){}
     try { if (typeof switchAdminTab === 'function') window.switchAdminTab = switchAdminTab; } catch(e){}
+    try { if (typeof runGlobalMasterSearch === 'function') window.runGlobalMasterSearch = runGlobalMasterSearch; } catch(e){}
 })();
 
 function switchAdminTab(tabId, event) {
@@ -2117,41 +2118,46 @@ function createSeparatedTableNode(tableId, titleLabel, dataList, columns) {
     if(dataList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:#999;">No members registered yet.</td></tr>`;
     } else {
-        chunk.forEach(member => {
-            // defensive guards for missing fields
-            const safeName = (member && member.name) ? String(member.name).toUpperCase() : 'UNKNOWN';
-            let currentHostel = (member && member.hostel) ? member.hostel : 'N/A';
-            if (currentHostel !== 'N/A' && currentHostel !== 'Pilgrim Lodge') currentHostel += ' HOSTEL';
-
-            idCardsHtml += `
-                <div class="id-card-unit">
-                    <div class="id-card-header">
-                        <div class="id-mini-logo">SU</div>
-                        <div class="id-header-text">
-                            <h6>SCRIPTURE UNION NIGERIA</h6>
-                            <p>ABAKPA ZONE NGWO AREA</p>`
-        
-        idCardsHtml += `
+        dataList.forEach(member => {
+            let tr = document.createElement('tr');
+            columns.forEach(col => {
+                let td = document.createElement('td');
+                td.textContent = member[col] || 'N/A';
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+    table.appendChild(tbody);
+    responsiveDiv.appendChild(table);
+    box.appendChild(responsiveDiv);
+    return box;
 }
-                    <div class="id-card-tag">2026 YOUTH & CHILDREN CAMP</div>
-                    <div class="id-card-body">
-                        <div class="id-field"><span class="lbl">NAME:</span> <span class="val">${safeName}</span></div>
-                        <div class="id-field"><span class="lbl">AGE:</span> <span class="val">${(member && (member.age || member.age === 0)) ? member.age : 'N/A'} years</span></div>
-                        <div class="id-field"><span class="lbl">HOSTEL:</span> <span class="val">${currentHostel}</span></div>
-                        <div class="id-field"><span class="lbl">TEAM:</span> <span class="val">${(member && member.team) ? member.team : 'N/A'}</span></div>
-                        <div class="id-field"><span class="lbl">BIBLE STUDY:</span> <span class="val">${(member && member.bibleStudyCenter) ? member.bibleStudyCenter : 'N/A'}</span></div>
-                        <div class="id-footer-code">${(member && member.code) ? member.code : 'N/A'}</div>
-                    </div>
-                </div>
-            `;
-        if (query === "") {
-            row.style.display = "";
-        } else if (cellText.includes(query)) {
-            row.style.display = "";
-            matches++;
-        } else {
-            row.style.display = "none";
-        }
+
+function runGlobalMasterSearch() {
+    const query = document.getElementById('adminGlobalMasterSearch').value.toLowerCase().trim();
+    const badge = document.getElementById('globalSearchCounterBadge');
+    let matches = 0;
+    
+    const tables = ['tableYouthData', 'tableChildrenData', 'tablePilgrimsData'];
+    tables.forEach(tableId => {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            if (row.cells.length === 1 && row.cells[0].textContent.includes('No records yet')) {
+                return;
+            }
+            const cellText = row.textContent.toLowerCase();
+            if (query === "") {
+                row.style.display = "";
+            } else if (cellText.includes(query)) {
+                row.style.display = "";
+                matches++;
+            } else {
+                row.style.display = "none";
+            }
+        });
     });
     
     badge.innerText = query === "" ? "" : `🎯 Found ${matches} matching records for "${query}"`;
